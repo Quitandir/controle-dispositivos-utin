@@ -9,6 +9,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
+  pages: {signIn: "/entrar"},
   callbacks: {
   signIn({ profile }) {
     const email = profile?.email ?? "";
