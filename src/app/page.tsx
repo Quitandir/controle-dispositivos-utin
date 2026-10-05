@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { sql } from "drizzle-orm";
 import { db } from "@/db/index";
-import { escolas, chromebooks, tablets } from "@/db/schema";
+import { escolas, chromebooks, tablets, telas } from "@/db/schema";
 import Header from "./components/Header";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ function Barra({ conferidos, total }: { conferidos: number; total: number }) {
 }
 
 export default async function Home() {
-  const [todasEscolas, statsChromebooks, statsTablets] = await Promise.all([
+  const [todasEscolas, statsChromebooks, statsTablets, statsTelas] = await Promise.all([
     db.select().from(escolas).orderBy(escolas.nome),
     db
       .select({
@@ -39,6 +39,13 @@ export default async function Home() {
       })
       .from(tablets)
       .groupBy(tablets.escolaId),
+    db
+      .select({
+        escolaId: telas.escolaId,
+        total: sql<number>`count(*)`.mapWith(Number),
+      })
+      .from(telas)
+      .groupBy(telas.escolaId),
   ]);
 
   const chromebooksPorEscola = new Map(
@@ -46,6 +53,9 @@ export default async function Home() {
   );
   const tabletsPorEscola = new Map(
     statsTablets.filter((s) => s.escolaId !== null).map((s) => [s.escolaId as number, s]),
+  );
+  const telasPorEscola = new Map(
+    statsTelas.filter((s) => s.escolaId !== null).map((s) => [s.escolaId as number, s.total]),
   );
 
   return (
@@ -63,6 +73,7 @@ export default async function Home() {
           {todasEscolas.map((e) => {
             const cb = chromebooksPorEscola.get(e.id);
             const tb = tabletsPorEscola.get(e.id);
+            const tl = telasPorEscola.get(e.id);
             return (
               <li key={e.id}>
                 <Link
@@ -97,7 +108,13 @@ export default async function Home() {
                         <Barra conferidos={tb.conferidos} total={tb.total} />
                       </div>
                     )}
-                    {!cb && !tb && (
+                    {tl && (
+                      <p className="font-mono text-xs text-ink-soft">
+                        <span className="uppercase tracking-widest">Telas</span> · {tl}{" "}
+                        {tl === 1 ? "registrada" : "registradas"}
+                      </p>
+                    )}
+                    {!cb && !tb && !tl && (
                       <p className="font-mono text-xs italic text-ink-soft">
                         Nenhum dispositivo registrado ainda
                       </p>

@@ -88,7 +88,7 @@ export default function ListaTablets({
 
       {itens.length === 0 && <p className="mt-8 text-ink-soft">Nenhum tablet vinculado a esta escola.</p>}
       {itens.length > 0 && filtrados.length === 0 && (
-        <p className="mt-8 text-ink-soft">Nenhum patrimônio encontrado para "{busca.trim()}".</p>
+        <p className="mt-8 text-ink-soft">Nenhum patrimônio encontrado para “{busca.trim()}”.</p>
       )}
     </>
   );

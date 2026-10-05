@@ -2,46 +2,36 @@
 
 import { useState, type ReactNode } from "react";
 
-export default function AbasDispositivos({
-  temChromebooks,
-  totalTablets,
-  conteudoChromebooks,
-  conteudoTablets,
-}: {
-  temChromebooks: boolean;
-  totalTablets: number;
-  conteudoChromebooks: ReactNode;
-  conteudoTablets: ReactNode;
-}) {
-  const [aba, setAba] = useState<"chromebooks" | "tablets">(temChromebooks ? "chromebooks" : "tablets");
+export type Aba = { chave: string; rotulo: string; conteudo: ReactNode };
+
+export default function AbasDispositivos({ abas }: { abas: Aba[] }) {
+  const [ativa, setAtiva] = useState(abas[0]?.chave);
+
+  if (abas.length === 0) {
+    return <p className="mt-8 text-ink-soft">Nenhum dispositivo registrado nesta unidade.</p>;
+  }
 
   return (
     <div>
-      <div className="mt-6 inline-flex rounded-full border border-line bg-white p-1">
-        {temChromebooks && (
+      <div className="mt-6 inline-flex flex-wrap rounded-full border border-line bg-white p-1">
+        {abas.map((a) => (
           <button
-            onClick={() => setAba("chromebooks")}
+            key={a.chave}
+            onClick={() => setAtiva(a.chave)}
             className={`min-h-11 rounded-full px-4 text-sm font-semibold ${
-              aba === "chromebooks" ? "bg-teal text-white" : "text-ink-soft"
+              ativa === a.chave ? "bg-teal text-white" : "text-ink-soft"
             }`}
           >
-            Chromebooks
+            {a.rotulo}
           </button>
-        )}
-        {totalTablets > 0 && (
-          <button
-            onClick={() => setAba("tablets")}
-            className={`min-h-11 rounded-full px-4 text-sm font-semibold ${
-              aba === "tablets" ? "bg-teal text-white" : "text-ink-soft"
-            }`}
-          >
-            Tablets
-          </button>
-        )}
+        ))}
       </div>
 
-      <div className={aba === "chromebooks" ? "block" : "hidden"}>{conteudoChromebooks}</div>
-      <div className={aba === "tablets" ? "block" : "hidden"}>{conteudoTablets}</div>
+      {abas.map((a) => (
+        <div key={a.chave} className={ativa === a.chave ? "block" : "hidden"}>
+          {a.conteudo}
+        </div>
+      ))}
     </div>
   );
 }
