@@ -20,7 +20,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
-  pages: {signIn: "/entrar"},
+  // Erros de login também vão para /entrar (em vez da página genérica em inglês do Auth.js).
+  // Caso comum no tablet: o "Voltar" do Android reabre a tela de consentimento do Google,
+  // que reenvia um callback sem login iniciado — o Auth.js recusa (verificação PKCE/state).
+  pages: {signIn: "/entrar", error: "/entrar"},
   callbacks: {
   signIn({ profile }) {
     const email = profile?.email ?? "";

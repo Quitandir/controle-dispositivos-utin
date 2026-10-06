@@ -1,6 +1,21 @@
-import { signIn } from "@/auth";
+import { redirect } from "next/navigation";
+import { auth, signIn } from "@/auth";
 
-export default function EntrarPage() {
+export default async function EntrarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  // Um login que falha não derruba a sessão existente: quem ainda está logado volta direto ao sistema.
+  if (await auth()) redirect("/");
+
+  const { error } = await searchParams;
+  const mensagemErro = !error
+    ? null
+    : error === "AccessDenied"
+      ? "Use sua conta institucional @canoasedu.rs.gov.br para entrar."
+      : "Não foi possível concluir a entrada. Tente novamente.";
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-paper px-4">
       <div className="w-full max-w-sm rounded-2xl border border-line bg-white p-8 text-center shadow-sm">
@@ -15,6 +30,15 @@ export default function EntrarPage() {
         <p className="mt-2 text-sm text-ink-soft">
           Entre com sua conta institucional para acessar a conferência de Chromebooks e tablets.
         </p>
+
+        {mensagemErro && (
+          <p
+            role="alert"
+            className="mt-5 rounded-xl border-2 border-terracotta bg-terracotta/10 px-4 py-3 text-sm font-semibold text-terracotta"
+          >
+            {mensagemErro}
+          </p>
+        )}
 
         <form
           action={async () => {
