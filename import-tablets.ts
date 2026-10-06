@@ -80,7 +80,7 @@ const MAPA_ESCOLA: Record<string, string | null> = {
   "EMEI PROFESSORA CARMEM FERREIRA": "EMEI Professora Carmem Ferreira",
   "EMEI PROFESSORA IDARA ROCHA": "EMEI Professora Idara Rocha",
   "EMEI PROFESSORA MARILENE DA SILVA MACHADO": "EMEI Professora Marilene da Silva Machado",
-  "EMEI PROFESSORA ROSÂNGELA": "EMEI Profª Rosângela Cunha Lanzoni",
+  "EMEI PROFESSORA ROSÂNGELA": "EMEI Professora Rosângela Cunha Lanzoni",
   "EMEI PROFESSORA TEREZINHA SANTOS TERGOLINA": "EMEI Professora Terezinha Santos Tergolina",
   "EMEI PÉ DE MOLEQUE": "EMEI Pé-de-Moleque",
   "EMEI RECANTO DO FILHOTE": "EMEI Recanto do Filhote",

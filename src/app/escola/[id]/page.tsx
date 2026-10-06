@@ -9,8 +9,11 @@ import {
   telas,
   telaVistorias,
   telaVistoriaHistorico,
+  visitas,
 } from "@/db/schema";
 import { CATEGORIAS_COM_TELAS, descreverAlteracoes, formatarData } from "@/lib/telas";
+import { codigoRelatorio } from "@/lib/relatorio";
+import PainelRelatorio from "../../components/PainelRelatorio";
 import Header from "../../components/Header";
 import ListaChromebooks from "../../components/ListaChromebooks";
 import ListaTablets from "../../components/ListaTablets";
@@ -18,6 +21,8 @@ import ListaTelas, { type ItemTela } from "../../components/ListaTelas";
 import AbasDispositivos, { type Aba } from "../../components/AbasDispositivos";
 
 export const dynamic = "force-dynamic";
+// gerar o PDF e salvar no Drive pode levar alguns segundos em escolas grandes
+export const maxDuration = 60;
 
 const fmt = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short",
@@ -116,7 +121,7 @@ export default async function PaginaEscola({
 
   const temTelas = CATEGORIAS_COM_TELAS.includes(escola.categoria ?? "");
 
-  const [listaChromebooks, listaTablets, imeisDuplicadosRaw, itensTelas] = await Promise.all([
+  const [listaChromebooks, listaTablets, imeisDuplicadosRaw, itensTelas, listaVisitas] = await Promise.all([
     db
       .select()
       .from(chromebooks)
@@ -131,6 +136,21 @@ export default async function PaginaEscola({
       sql`select imei from tablets where imei is not null group by imei having count(*) > 1`,
     ),
     temTelas ? carregarTelas(escolaId) : Promise.resolve([]),
+    db
+      .select({
+        id: visitas.id,
+        ano: visitas.ano,
+        numero: visitas.numero,
+        versao: visitas.versao,
+        geradoEm: visitas.geradoEm,
+        geradoPor: visitas.geradoPor,
+        driveUrl: visitas.driveUrl,
+        enviadoEm: visitas.enviadoEm,
+        enviadoPor: visitas.enviadoPor,
+      })
+      .from(visitas)
+      .where(eq(visitas.escolaId, escolaId))
+      .orderBy(desc(visitas.geradoEm)),
   ]);
 
   const imeisDuplicados = imeisDuplicadosRaw.rows.map((r) => r.imei);
@@ -206,6 +226,24 @@ export default async function PaginaEscola({
             </span>
           )}
         </div>
+
+        {(listaChromebooks.length > 0 || listaTablets.length > 0 || itensTelas.length > 0) && (
+          <PainelRelatorio
+            escolaId={escolaId}
+            pendentesChromebooks={listaChromebooks.length - conferidosChromebooks}
+            pendentesTablets={listaTablets.length - conferidosTablets}
+            diretorNomeInicial={escola.diretorNome ?? ""}
+            emailEscola={escola.email}
+            visitas={listaVisitas.map((v) => ({
+              id: v.id,
+              codigo: codigoRelatorio(v.ano, v.numero, v.versao),
+              geradoEm: fmt.format(v.geradoEm),
+              geradoPor: v.geradoPor,
+              driveUrl: v.driveUrl,
+              enviado: v.enviadoEm ? `${fmt.format(v.enviadoEm)} por ${v.enviadoPor}` : null,
+            }))}
+          />
+        )}
 
         <AbasDispositivos abas={abas} />
       </main>

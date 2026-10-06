@@ -24,6 +24,7 @@ controle-dispositivos/
 ├── seed-escolas.ts                 (seed inicial: 46 EMEFs+CEIAs, já rodado)
 ├── seed-escolas2.ts                (seed: 39 EMEIs + 4 categorias administrativas, já rodado)
 ├── import-tablets.ts               (import único dos 5.001 tablets, já rodado; o tablets.csv foi removido do repo e do histórico — *.csv está no .gitignore)
+├── seed-emails-escolas.ts          (e-mail institucional de cada escola, confere id+nome antes de gravar)
 └── src/
     ├── auth.ts                     (config do Auth.js: Google + trava de domínio)
     ├── proxy.ts                    (substitui middleware.ts no Next 16; protege páginas)
@@ -33,7 +34,12 @@ controle-dispositivos/
     ├── lib/
     │   ├── sync-chromebooks.ts     (lógica da sincronização via Admin SDK)
     │   ├── status.ts               (opções de status + validação, Chromebook e tablet)
-    │   └── telas.ts                (opções, validação e formatação das vistorias de telas)
+    │   ├── telas.ts                (opções, validação e formatação das vistorias de telas)
+    │   ├── relatorio.ts            (tipos do retrato da visita, código REL-AAAA-NNNN, resumos, textos fixos)
+    │   ├── relatorio-dados.ts      (monta o retrato a partir do banco; conta pendentes)
+    │   ├── relatorio-pdf.tsx       (PDF com @react-pdf/renderer)
+    │   ├── drive.ts                (Service Account no Drive compartilhado: salva/baixa PDFs)
+    │   └── gmail.ts                (envia e-mail em nome de quem está logado, via refresh token)
     └── app/
         ├── globals.css
         ├── layout.tsx
@@ -47,11 +53,13 @@ controle-dispositivos/
         │   ├── ListaTablets.tsx        (lista + busca + aviso de IMEI duplicado)
         │   ├── ListaTelas.tsx          (telas da escola: última vistoria, histórico, edições)
         │   ├── FormularioVistoriaTela.tsx (formulário de vistoria — registrar e editar)
-        │   └── AbasDispositivos.tsx    (abas genéricas da página da escola)
+        │   ├── AbasDispositivos.tsx    (abas genéricas da página da escola)
+        │   └── PainelRelatorio.tsx     (gerar relatório, abrir no Drive, enviar à escola)
         ├── entrar/page.tsx         (tela de login customizada)
         ├── escola/[id]/
         │   ├── page.tsx            (abas Chromebooks/Tablets/Telas da escola)
-        │   └── actions.ts          (server actions: status, observações e vistorias de telas)
+        │   ├── actions.ts          (server actions: status, observações e vistorias de telas)
+        │   └── relatorio-actions.ts (server actions: gerar relatório e enviar à escola)
         └── api/
             ├── auth/[...nextauth]/route.ts
             └── sync/chromebooks/route.ts   (protegida por CRON_SECRET)
@@ -60,11 +68,13 @@ controle-dispositivos/
 ## Schema (Drizzle, Postgres via Neon)
 
 ```typescript
-escolas: id, nome (unique), categoria ('EMEF'|'EMEI'|'CEIA'|'Administrativo'), orgUnitPath (unique, nullable)
+escolas: id, nome (unique), categoria ('EMEF'|'EMEI'|'CEIA'|'Administrativo'), orgUnitPath (unique, nullable),
+         email, diretorNome
 
 chromebooks: id, googleDeviceId (unique), escolaId, assetId, serialNumber, model, notes,
              orgUnitPath, googleStatus, status ('localizado'|'nao_localizado'|'recolhido'),
-             statusAtualizadoEm, statusAtualizadoPor, lastSyncedAt
+             statusAtualizadoEm, statusAtualizadoPor, lastSyncedAt,
+             ultimoSyncGoogle (lastSync do Admin SDK), ultimoUsuario (recentUsers[0])
 
 statusHistorico: id, chromebookId, statusAnterior, statusNovo, alteradoPor, alteradoEm
 
@@ -84,6 +94,12 @@ telaVistorias: id, telaId, escolaId (escola onde a visita ocorreu), dataVisita (
                registradoPor, registradoEm, atualizadoPor, atualizadoEm
 
 telaVistoriaHistorico: id, vistoriaId, alteracoes (jsonb { campo: { de, para } }), alteradoPor, alteradoEm
+
+visitas: id, escolaId, ano, numero, versao (unique ano+numero+versao), retrato (jsonb congelado),
+         diretorNome, geradoPor, geradoPorNome, geradoEm, driveFileId, driveUrl,
+         enviadoPara, enviadoPor, enviadoEm
+
+tokensGoogle: email (pk), refreshToken, atualizadoEm   (só servidor; usado para gmail.send)
 ```
 
 Schema é aplicado via `npx drizzle-kit push` — **não há pasta de migrations versionada**, o projeto usa push direto no banco até agora.
@@ -105,6 +121,7 @@ NEXTAUTH_SECRET
 NEXTAUTH_URL        (só local; produção não precisa, Auth.js detecta sozinho)
 DATABASE_URL         (produção: string com -pooler)
 CRON_SECRET
+DRIVE_PASTA_RELATORIOS_ID  (pasta "Relatórios de visitas" no Drive compartilhado "Time Google")
 ```
 
 ## Decisões importantes (para não reabrir debate sem necessidade)
@@ -117,6 +134,10 @@ CRON_SECRET
 - Vistorias de tela são **editáveis**; cada edição grava só os campos alterados em `telaVistoriaHistorico`, e a interface mostra a última alteração (registro ou edição) de cada tela.
 - Apps das telas são **texto livre** (o usuário adiciona um a um), sem lista fixa. Marcas são fixas.
 - O formulário de referência da equipe (timetelas.netlify.app) tem recursos "Gemini" e export Excel que são **simulações** — não foram trazidos. Exportação para planilha fica para uma fase futura.
+- **Relatório de visita**: só pode ser gerado quando todos os Chromebooks e tablets da escola têm status. Grava um **retrato congelado** em `visitas.retrato` — o PDF assinado corresponde a ele mesmo que os status mudem depois. Refazer na mesma escola/ano mantém o número e sobe a versão (`REL-2026-0042 v2`); a versão anterior continua no Drive.
+- PDF salvo em `Relatórios de visitas/<ano>/` (pasta do ano criada sozinha), sem subpastas por escola. A Service Account entra no Drive compartilhado como **membro** (Administrador de conteúdo) — **sem** novo escopo na delegação de domínio.
+- Assinatura: **a lápis no app do Drive no tablet** (diretor + pessoa do time), não assinatura eletrônica. O Drive salva a anotação **no mesmo arquivo** (testado), então "Enviar à escola" baixa a versão atual e anexa.
+- E-mail sai **da conta de quem está logado** (escopo `gmail.send` no login, refresh token na tabela `tokensGoogle`), com cópia para a própria pessoa. Destino: `escolas.email` (padrão com sublinhado, `emef_x@`).
 - Nomes de escola exigiram reconciliação manual entre três fontes (Admin Console, planilha de EMEIs, planilha de tablets) — ver o histórico completo em `/projects/.../areas/controle-dispositivos.md` na memória do Claude se for preciso entender alguma grafia específica.
 
 ## Pegadinhas já descobertas (não repetir o troubleshooting)
@@ -128,6 +149,8 @@ CRON_SECRET
 - **CEIA**: a tabela `escolas` guarda o nome completo (`CEIA Nordeste - Centro de Educação Inclusiva e Acessibilidade`), não a forma curta — já corrigido, mas vale lembrar se aparecer alguma fonte de dado nova usando o nome curto.
 
 ## Pendências / próximos passos possíveis
+
+0. **Teste do relatório (06/10/2026)**: o CEIA Noroeste (id 46) está com e-mail temporário `time.google@canoasedu.rs.gov.br`. Depois do teste, voltar para `ceia_prof_analucia@canoasedu.rs.gov.br`, apagar as visitas de teste do banco (para a numeração oficial começar em `REL-2026-0001`) e os PDFs de teste do Drive.
 
 1. Confirmar que o cron diário de sincronização está de fato disparando sozinho na Vercel (só testamos manualmente até agora).
 2. **Fase 3**: telas interativas implementadas (vistorias por visita). **Mesas interativas ficaram para depois.**

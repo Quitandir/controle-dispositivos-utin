@@ -26,7 +26,7 @@ const EMEIS = [
   "EMEI Pequeno Polegar",
   "EMEI Pingo de Gente",
   "EMEI Pintando o Sete",
-  "EMEI Profª Rosângela Cunha Lanzoni",
+  "EMEI Professora Rosângela Cunha Lanzoni",
   "EMEI Professora Carmem Ferreira",
   "EMEI Professora Idara Rocha",
   "EMEI Professora Marilene da Silva Machado",

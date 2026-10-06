@@ -51,6 +51,8 @@ export async function sincronizarChromebooks() {
           notes: d.notes ?? null,
           orgUnitPath: d.orgUnitPath ?? null,
           googleStatus: d.status ?? null,
+          ultimoSyncGoogle: d.lastSync ? new Date(d.lastSync) : null,
+          ultimoUsuario: d.recentUsers?.find((u) => u.email)?.email ?? null,
           lastSyncedAt: agora,
         };
       });
@@ -71,6 +73,8 @@ export async function sincronizarChromebooks() {
             notes: sql`excluded.notes`,
             orgUnitPath: sql`excluded.org_unit_path`,
             googleStatus: sql`excluded.google_status`,
+            ultimoSyncGoogle: sql`excluded.ultimo_sync_google`,
+            ultimoUsuario: sql`excluded.ultimo_usuario`,
             lastSyncedAt: sql`excluded.last_synced_at`,
           },
         });

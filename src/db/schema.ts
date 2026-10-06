@@ -1,10 +1,13 @@
-import { pgTable, serial, text, timestamp, integer, date, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, date, jsonb, unique } from "drizzle-orm/pg-core";
+import type { RetratoVisita } from "../lib/relatorio";
 
 export const escolas = pgTable("escolas", {
   id: serial("id").primaryKey(),
   nome: text("nome").notNull().unique(),
   categoria: text("categoria"), // 'EMEF' | 'EMEI' | 'CEIA' | 'Administrativo'
   orgUnitPath: text("org_unit_path").unique(), // agora opcional
+  email: text("email"), // e-mail institucional da escola (destino do relatório)
+  diretorNome: text("diretor_nome"), // lembrado do último relatório, para pré-preencher o próximo
 });
 
 export const chromebooks = pgTable("chromebooks", {
@@ -21,6 +24,8 @@ export const chromebooks = pgTable("chromebooks", {
   statusAtualizadoPor: text("status_atualizado_por"),
   lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }).notNull(),
   googleStatus: text("google_status"), // status bruto do Google: ACTIVE, DEPROVISIONED, DISABLED etc.
+  ultimoSyncGoogle: timestamp("ultimo_sync_google", { withTimezone: true }), // lastSync do Admin SDK: último contato do aparelho
+  ultimoUsuario: text("ultimo_usuario"), // recentUsers[0] do Admin SDK
 });
 
 export const tablets = pgTable("tablets", {
@@ -93,4 +98,37 @@ export const telaVistoriaHistorico = pgTable("tela_vistoria_historico", {
   alteracoes: jsonb("alteracoes").$type<Record<string, { de: unknown; para: unknown }>>().notNull(),
   alteradoPor: text("alterado_por").notNull(),
   alteradoEm: timestamp("alterado_em", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Relatório de visita: um retrato congelado da conferência no momento da geração.
+// O PDF assinado na escola corresponde a este retrato, mesmo que os status mudem depois.
+// Refazer o relatório da mesma escola no mesmo ano mantém o número e sobe a versão.
+export const visitas = pgTable(
+  "visitas",
+  {
+    id: serial("id").primaryKey(),
+    escolaId: integer("escola_id").notNull().references(() => escolas.id),
+    ano: integer("ano").notNull(),
+    numero: integer("numero").notNull(), // sequencial por ano: REL-2026-0042
+    versao: integer("versao").notNull(),
+    retrato: jsonb("retrato").$type<RetratoVisita>().notNull(),
+    diretorNome: text("diretor_nome").notNull(),
+    geradoPor: text("gerado_por").notNull(), // e-mail
+    geradoPorNome: text("gerado_por_nome").notNull(),
+    geradoEm: timestamp("gerado_em", { withTimezone: true }).notNull().defaultNow(),
+    driveFileId: text("drive_file_id"),
+    driveUrl: text("drive_url"),
+    enviadoPara: text("enviado_para"),
+    enviadoPor: text("enviado_por"),
+    enviadoEm: timestamp("enviado_em", { withTimezone: true }),
+  },
+  (t) => [unique().on(t.ano, t.numero, t.versao)],
+);
+
+// Refresh token do Google de cada usuário, para enviar e-mail (gmail.send) em nome
+// de quem está logado. Fica só no servidor — nunca vai para a sessão do navegador.
+export const tokensGoogle = pgTable("tokens_google", {
+  email: text("email").primaryKey(),
+  refreshToken: text("refresh_token").notNull(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
 });
