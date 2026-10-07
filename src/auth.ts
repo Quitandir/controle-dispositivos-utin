@@ -1,7 +1,9 @@
+import * as Sentry from "@sentry/nextjs";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { db } from "@/db/index";
 import { tokensGoogle } from "@/db/schema";
+import { emailAutorizado } from "@/lib/acesso";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -24,14 +26,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // Caso comum no tablet: o "Voltar" do Android reabre a tela de consentimento do Google,
   // que reenvia um callback sem login iniciado — o Auth.js recusa (verificação PKCE/state).
   pages: {signIn: "/entrar", error: "/entrar"},
+  // Erros de login (como o do "Voltar" no tablet) não chegam ao onRequestError porque o
+  // Auth.js os trata internamente — por isso são enviados ao Sentry aqui.
+  logger: {
+    error(erro) {
+      console.error("[auth][error]", erro);
+      Sentry.captureException(erro, { tags: { area: "login" } });
+    },
+  },
   callbacks: {
+  // só entra quem está na tabela usuarios_autorizados (e é do domínio @canoasedu)
   signIn({ profile }) {
-    const email = profile?.email ?? "";
-    return email.endsWith("@canoasedu.rs.gov.br");
+    return emailAutorizado(profile?.email);
   },
   authorized({ auth }) {
-    // no middleware: só passa quem tem sessão; os demais vão para o login
-    return !!auth;
+    // no proxy: precisa de sessão E continuar na lista — remover alguém da tabela
+    // derruba o acesso mesmo com a sessão ainda válida. Os demais vão para /entrar.
+    return emailAutorizado(auth?.user?.email);
   },
 },
   events: {

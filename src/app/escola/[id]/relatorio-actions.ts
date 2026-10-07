@@ -1,5 +1,6 @@
 "use server";
 
+import * as Sentry from "@sentry/nextjs";
 import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
@@ -90,6 +91,7 @@ export async function gerarRelatorio(escolaId: number, diretorNomeBruto: string)
     // sem arquivo no Drive o relatório não serve: desfaz a reserva do número
     if (visitaId) await db.delete(visitas).where(eq(visitas.id, visitaId));
     console.error("Falha ao gerar relatório", e);
+    Sentry.captureException(e, { tags: { area: "relatorio", etapa: "gerar" }, extra: { escolaId } });
     return { ok: false, erro: `Não foi possível gerar o relatório: ${mensagem(e)}` };
   }
 
@@ -147,6 +149,7 @@ export async function enviarRelatorioParaEscola(visitaId: number): Promise<Resul
     });
   } catch (e) {
     console.error("Falha ao enviar relatório", e);
+    Sentry.captureException(e, { tags: { area: "relatorio", etapa: "enviar" }, extra: { visitaId } });
     return { ok: false, erro: mensagem(e) };
   }
 

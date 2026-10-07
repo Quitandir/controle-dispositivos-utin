@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import SeletorStatusTablet from "./SeletorStatusTablet";
+import SeletorStatus from "./SeletorStatus";
 import CampoObservacoes from "./CampoObservacoes";
 
 export type ItemTablet = {
@@ -46,7 +46,7 @@ export default function ListaTablets({
           </p>
         )}
       </div>
-      <div className="mt-2 hidden grid-cols-[9rem_11rem_15rem_1fr_9rem] gap-4 px-5 font-mono text-xs uppercase tracking-widest text-ink-soft md:grid">
+      <div className="mt-2 hidden grid-cols-[9rem_11rem_18rem_1fr_9rem] gap-4 px-5 font-mono text-xs uppercase tracking-widest text-ink-soft md:grid">
         <span>Patrimônio</span>
         <span>IMEI</span>
         <span>Status</span>
@@ -59,7 +59,7 @@ export default function ListaTablets({
           return (
             <li
               key={t.id}
-              className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-4 md:grid md:grid-cols-[9rem_11rem_15rem_1fr_9rem] md:items-start md:gap-4 md:px-5"
+              className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-4 md:grid md:grid-cols-[9rem_11rem_18rem_1fr_9rem] md:items-start md:gap-4 md:px-5"
             >
               <div>
                 <span className="font-mono text-xs uppercase text-ink-soft md:hidden">Patrimônio </span>
@@ -78,7 +78,7 @@ export default function ListaTablets({
                   <p className="mt-0.5 text-xs text-terracotta">IMEI repetido em outro tablet</p>
                 )}
               </div>
-              <SeletorStatusTablet tabletId={t.id} statusInicial={t.status} />
+              <SeletorStatus tipo="tablet" id={t.id} statusInicial={t.status} />
               <CampoObservacoes tabletId={t.id} historico={t.observacoes} />
               <div className="font-mono text-xs text-ink-soft">{t.atualizadoEm ?? "—"}</div>
             </li>

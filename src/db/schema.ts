@@ -132,3 +132,11 @@ export const tokensGoogle = pgTable("tokens_google", {
   refreshToken: text("refresh_token").notNull(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Contas que podem entrar no sistema (além da trava de domínio @canoasedu).
+// Mantida por script/SQL — ver seed-usuarios.ts. Remover a linha corta o acesso em até 1 minuto.
+export const usuariosAutorizados = pgTable("usuarios_autorizados", {
+  email: text("email").primaryKey(), // sempre em minúsculas
+  nome: text("nome"),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+});

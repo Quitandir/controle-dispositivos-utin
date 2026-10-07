@@ -25,9 +25,12 @@ controle-dispositivos/
 ├── seed-escolas2.ts                (seed: 39 EMEIs + 4 categorias administrativas, já rodado)
 ├── import-tablets.ts               (import único dos 5.001 tablets, já rodado; o tablets.csv foi removido do repo e do histórico — *.csv está no .gitignore)
 ├── seed-emails-escolas.ts          (e-mail institucional de cada escola, confere id+nome antes de gravar)
+├── seed-usuarios.ts                (contas autorizadas a entrar; só adiciona, nunca remove)
 └── src/
     ├── auth.ts                     (config do Auth.js: Google + trava de domínio)
     ├── proxy.ts                    (substitui middleware.ts no Next 16; protege páginas)
+    ├── instrumentation.ts          (Sentry no servidor + onRequestError)
+    ├── instrumentation-client.ts   (Sentry no navegador)
     ├── db/
     │   ├── index.ts                (Pool + drizzle)
     │   └── schema.ts               (todas as tabelas)
@@ -39,15 +42,17 @@ controle-dispositivos/
     │   ├── relatorio-dados.ts      (monta o retrato a partir do banco; conta pendentes)
     │   ├── relatorio-pdf.tsx       (PDF com @react-pdf/renderer)
     │   ├── drive.ts                (Service Account no Drive compartilhado: salva/baixa PDFs)
-    │   └── gmail.ts                (envia e-mail em nome de quem está logado, via refresh token)
+    │   ├── gmail.ts                (envia e-mail em nome de quem está logado, via refresh token)
+    │   ├── acesso.ts               (emailAutorizado: lista de contas, com cache de 1 min)
+    │   └── sentry-opcoes.ts        (opções comuns do Sentry: só erros, sem Replay, sem PII)
     └── app/
         ├── globals.css
         ├── layout.tsx
         ├── page.tsx                (home: lista as 89 escolas, barras de progresso + contagem de telas)
         ├── components/
         │   ├── Header.tsx
-        │   ├── SeletorStatus.tsx       (dropdown de status — Chromebooks, 3 estados)
-        │   ├── SeletorStatusTablet.tsx (dropdown de status — tablets, 4 estados)
+        │   ├── SeletorStatus.tsx       (checkbox "localizado" + dropdown de status; tipo chromebook|tablet)
+        │   ├── IdentificarUsuarioSentry.tsx (associa erros do navegador ao e-mail do usuário)
         │   ├── CampoObservacoes.tsx    (log de observações dos tablets, acumulativo)
         │   ├── ListaChromebooks.tsx    (lista + busca por patrimônio)
         │   ├── ListaTablets.tsx        (lista + busca + aviso de IMEI duplicado)
@@ -100,6 +105,8 @@ visitas: id, escolaId, ano, numero, versao (unique ano+numero+versao), retrato (
          enviadoPara, enviadoPor, enviadoEm
 
 tokensGoogle: email (pk), refreshToken, atualizadoEm   (só servidor; usado para gmail.send)
+
+usuariosAutorizados: email (pk, minúsculas), nome, criadoEm
 ```
 
 Schema é aplicado via `npx drizzle-kit push` — **não há pasta de migrations versionada**, o projeto usa push direto no banco até agora.
@@ -122,6 +129,8 @@ NEXTAUTH_URL        (só local; produção não precisa, Auth.js detecta sozinho
 DATABASE_URL         (produção: string com -pooler)
 CRON_SECRET
 DRIVE_PASTA_RELATORIOS_ID  (pasta "Relatórios de visitas" no Drive compartilhado "Time Google")
+NEXT_PUBLIC_SENTRY_DSN     (sem ela o Sentry fica desligado — ex.: local)
+SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN   (só no build da Vercel: envio de source maps)
 ```
 
 ## Decisões importantes (para não reabrir debate sem necessidade)
@@ -138,6 +147,9 @@ DRIVE_PASTA_RELATORIOS_ID  (pasta "Relatórios de visitas" no Drive compartilhad
 - PDF salvo em `Relatórios de visitas/<ano>/` (pasta do ano criada sozinha), sem subpastas por escola. A Service Account entra no Drive compartilhado como **membro** (Administrador de conteúdo) — **sem** novo escopo na delegação de domínio.
 - Assinatura: **a lápis no app do Drive no tablet** (diretor + pessoa do time), não assinatura eletrônica. O Drive salva a anotação **no mesmo arquivo** (testado), então "Enviar à escola" baixa a versão atual e anexa.
 - E-mail sai **da conta de quem está logado** (escopo `gmail.send` no login, refresh token na tabela `tokensGoogle`), com cópia para a própria pessoa. Destino: `escolas.email` (padrão com sublinhado, `emef_x@`).
+- **Acesso restrito a uma lista** (`usuariosAutorizados`), mantida por script/SQL, sem tela. Conferida no login **e a cada navegação** (callback `authorized` do proxy), com cache de 1 min — remover alguém corta o acesso mesmo com sessão válida. `/entrar` trata "com sessão mas fora da lista" para não entrar em loop com o proxy.
+- **Checkbox "localizado"** ao lado do dropdown: marcar grava `localizado`; desmarcar volta ao status anterior **segundo o histórico** (`reverterLocalizado*`), podendo voltar a `null` (não conferido).
+- **Sentry**: só erros (`tracesSampleRate: 0`), **sem Session Replay** e `sendDefaultPii: false` — as telas mostram e-mails de alunos. Usuário identificado só pelo e-mail da equipe. Erros de login vão pelo `logger` do Auth.js; falhas de Drive/Gmail nas actions do relatório são capturadas explicitamente (elas devolvem `{ok:false}` em vez de lançar).
 - Nomes de escola exigiram reconciliação manual entre três fontes (Admin Console, planilha de EMEIs, planilha de tablets) — ver o histórico completo em `/projects/.../areas/controle-dispositivos.md` na memória do Claude se for preciso entender alguma grafia específica.
 
 ## Pegadinhas já descobertas (não repetir o troubleshooting)

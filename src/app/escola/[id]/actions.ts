@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/db/index";
@@ -77,6 +77,86 @@ export async function atualizarStatusTablet(tabletId: number, novoStatus: string
 
   revalidatePath("/escola/[id]", "page");
   revalidatePath("/");
+}
+
+// Desmarcar o checkbox "localizado": volta ao status que o dispositivo tinha antes de virar
+// localizado, segundo o histórico (pode ser null = não conferido). Devolve o status resultante.
+export async function reverterLocalizado(chromebookId: number): Promise<string | null> {
+  const session = await auth();
+  const email = session?.user?.email;
+  if (!email) throw new Error("Não autenticado");
+
+  const novo = await db.transaction(async (tx) => {
+    const [atual] = await tx
+      .select({ status: chromebooks.status })
+      .from(chromebooks)
+      .where(eq(chromebooks.id, chromebookId));
+    if (!atual) throw new Error("Chromebook não encontrado");
+    if (atual.status !== "localizado") return atual.status;
+
+    const [ultima] = await tx
+      .select({ statusAnterior: statusHistorico.statusAnterior })
+      .from(statusHistorico)
+      .where(and(eq(statusHistorico.chromebookId, chromebookId), eq(statusHistorico.statusNovo, "localizado")))
+      .orderBy(desc(statusHistorico.alteradoEm), desc(statusHistorico.id))
+      .limit(1);
+    const anterior = ultima?.statusAnterior ?? null;
+
+    await tx
+      .update(chromebooks)
+      .set({ status: anterior, statusAtualizadoEm: new Date(), statusAtualizadoPor: email })
+      .where(eq(chromebooks.id, chromebookId));
+    await tx.insert(statusHistorico).values({
+      chromebookId,
+      statusAnterior: "localizado",
+      statusNovo: anterior,
+      alteradoPor: email,
+    });
+    return anterior;
+  });
+
+  revalidatePath("/escola/[id]", "page");
+  revalidatePath("/");
+  return novo;
+}
+
+export async function reverterLocalizadoTablet(tabletId: number): Promise<string | null> {
+  const session = await auth();
+  const email = session?.user?.email;
+  if (!email) throw new Error("Não autenticado");
+
+  const novo = await db.transaction(async (tx) => {
+    const [atual] = await tx
+      .select({ status: tablets.status })
+      .from(tablets)
+      .where(eq(tablets.id, tabletId));
+    if (!atual) throw new Error("Tablet não encontrado");
+    if (atual.status !== "localizado") return atual.status;
+
+    const [ultima] = await tx
+      .select({ statusAnterior: tabletStatusHistorico.statusAnterior })
+      .from(tabletStatusHistorico)
+      .where(and(eq(tabletStatusHistorico.tabletId, tabletId), eq(tabletStatusHistorico.statusNovo, "localizado")))
+      .orderBy(desc(tabletStatusHistorico.alteradoEm), desc(tabletStatusHistorico.id))
+      .limit(1);
+    const anterior = ultima?.statusAnterior ?? null;
+
+    await tx
+      .update(tablets)
+      .set({ status: anterior, statusAtualizadoEm: new Date(), statusAtualizadoPor: email })
+      .where(eq(tablets.id, tabletId));
+    await tx.insert(tabletStatusHistorico).values({
+      tabletId,
+      statusAnterior: "localizado",
+      statusNovo: anterior,
+      alteradoPor: email,
+    });
+    return anterior;
+  });
+
+  revalidatePath("/escola/[id]", "page");
+  revalidatePath("/");
+  return novo;
 }
 
 const fmtLog = new Intl.DateTimeFormat("pt-BR", {

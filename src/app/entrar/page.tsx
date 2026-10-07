@@ -1,20 +1,28 @@
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/auth";
+import { emailAutorizado } from "@/lib/acesso";
+
+const MSG_SEM_ACESSO =
+  "Esta conta não tem acesso ao sistema. Entre com uma conta autorizada ou peça acesso à UTIN.";
 
 export default async function EntrarPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  // Um login que falha não derruba a sessão existente: quem ainda está logado volta direto ao sistema.
-  if (await auth()) redirect("/");
+  // Um login que falha não derruba a sessão existente: quem ainda está logado e autorizado
+  // volta direto ao sistema. Quem tem sessão mas saiu da lista fica aqui (senão o proxy
+  // devolveria para /entrar e entraria em loop).
+  const session = await auth();
+  const comSessaoSemAcesso = !!session && !(await emailAutorizado(session.user?.email));
+  if (session && !comSessaoSemAcesso) redirect("/");
 
   const { error } = await searchParams;
-  const mensagemErro = !error
-    ? null
-    : error === "AccessDenied"
-      ? "Use sua conta institucional @canoasedu.rs.gov.br para entrar."
-      : "Não foi possível concluir a entrada. Tente novamente.";
+  const mensagemErro = comSessaoSemAcesso || error === "AccessDenied"
+    ? MSG_SEM_ACESSO
+    : error
+      ? "Não foi possível concluir a entrada. Tente novamente."
+      : null;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-paper px-4">
@@ -43,7 +51,8 @@ export default async function EntrarPage({
         <form
           action={async () => {
             "use server";
-            await signIn("google", {redirectTo: "/"});
+            // select_account: deixa trocar de conta mesmo com outra já conectada no aparelho
+            await signIn("google", {redirectTo: "/"}, {prompt: "consent select_account"});
           }}
           className="mt-6"
         >

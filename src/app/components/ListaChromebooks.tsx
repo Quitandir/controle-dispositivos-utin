@@ -12,7 +12,7 @@ export type ItemChromebook = {
   atualizadoEm: string | null; // já formatada no servidor
 };
 
-const COLUNAS = "md:grid-cols-[9rem_1fr_15rem_1fr_9rem]";
+const COLUNAS = "md:grid-cols-[9rem_1fr_18rem_1fr_9rem]";
 
 export default function ListaChromebooks({ itens }: { itens: ItemChromebook[] }) {
   const [busca, setBusca] = useState("");
@@ -69,7 +69,7 @@ export default function ListaChromebooks({ itens }: { itens: ItemChromebook[] })
               </span>
             </div>
             <div className="text-sm text-ink-soft">{c.model}</div>
-            <SeletorStatus chromebookId={c.id} statusInicial={c.status} />
+            <SeletorStatus tipo="chromebook" id={c.id} statusInicial={c.status} />
             <div className="text-sm text-ink-soft">{c.notes}</div>
             <div className="font-mono text-xs text-ink-soft">
               {c.atualizadoEm ?? "—"}
