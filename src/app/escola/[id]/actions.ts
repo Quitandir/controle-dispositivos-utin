@@ -2,7 +2,6 @@
 
 import { and, desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
 import { db } from "@/db/index";
 import {
   chromebooks,
@@ -16,11 +15,10 @@ import {
 } from "@/db/schema";
 import { statusValido, statusValidoTablet } from "@/lib/status";
 import { validarVistoria, type DadosVistoria } from "@/lib/telas";
+import { exigirUsuario, type UsuarioSessao } from "@/lib/usuario";
 
 export async function atualizarStatus(chromebookId: number, novoStatus: string) {
-  const session = await auth();
-  const email = session?.user?.email;
-  if (!email) throw new Error("Não autenticado");
+  const { email } = await exigirUsuario();
   if (!statusValido(novoStatus)) throw new Error("Status inválido");
 
   await db.transaction(async (tx) => {
@@ -49,9 +47,7 @@ export async function atualizarStatus(chromebookId: number, novoStatus: string) 
 }
 
 export async function atualizarStatusTablet(tabletId: number, novoStatus: string) {
-  const session = await auth();
-  const email = session?.user?.email;
-  if (!email) throw new Error("Não autenticado");
+  const { email } = await exigirUsuario();
   if (!statusValidoTablet(novoStatus)) throw new Error("Status inválido");
 
   await db.transaction(async (tx) => {
@@ -82,9 +78,7 @@ export async function atualizarStatusTablet(tabletId: number, novoStatus: string
 // Desmarcar o checkbox "localizado": volta ao status que o dispositivo tinha antes de virar
 // localizado, segundo o histórico (pode ser null = não conferido). Devolve o status resultante.
 export async function reverterLocalizado(chromebookId: number): Promise<string | null> {
-  const session = await auth();
-  const email = session?.user?.email;
-  if (!email) throw new Error("Não autenticado");
+  const { email } = await exigirUsuario();
 
   const novo = await db.transaction(async (tx) => {
     const [atual] = await tx
@@ -121,9 +115,7 @@ export async function reverterLocalizado(chromebookId: number): Promise<string |
 }
 
 export async function reverterLocalizadoTablet(tabletId: number): Promise<string | null> {
-  const session = await auth();
-  const email = session?.user?.email;
-  if (!email) throw new Error("Não autenticado");
+  const { email } = await exigirUsuario();
 
   const novo = await db.transaction(async (tx) => {
     const [atual] = await tx
@@ -166,9 +158,7 @@ const fmtLog = new Intl.DateTimeFormat("pt-BR", {
 });
 
 export async function adicionarObservacaoTablet(tabletId: number, texto: string) {
-  const session = await auth();
-  const email = session?.user?.email;
-  if (!email) throw new Error("Não autenticado");
+  const { email } = await exigirUsuario();
 
   const textoLimpo = texto.trim();
   if (!textoLimpo) throw new Error("Observação vazia");
@@ -213,9 +203,13 @@ export async function registrarVistoriaTela(
   dadosBrutos: DadosVistoria,
   confirmarMudancaEscola: boolean,
 ): Promise<ResultadoTela> {
-  const session = await auth();
-  const email = session?.user?.email;
-  if (!email) return { ok: false, erro: "Sessão expirada. Entre novamente." };
+  let usuario: UsuarioSessao;
+  try {
+    usuario = await exigirUsuario();
+  } catch (e) {
+    return { ok: false, erro: mensagem(e) };
+  }
+  const { email } = usuario;
 
   const patrimonio = patrimonioBruto.trim();
   if (!patrimonio) return { ok: false, erro: "Informe o número do patrimônio" };
@@ -295,9 +289,13 @@ export async function editarVistoriaTela(
   vistoriaId: number,
   dadosBrutos: DadosVistoria,
 ): Promise<ResultadoTela> {
-  const session = await auth();
-  const email = session?.user?.email;
-  if (!email) return { ok: false, erro: "Sessão expirada. Entre novamente." };
+  let usuario: UsuarioSessao;
+  try {
+    usuario = await exigirUsuario();
+  } catch (e) {
+    return { ok: false, erro: mensagem(e) };
+  }
+  const { email } = usuario;
 
   let dados: DadosVistoria;
   try {

@@ -44,6 +44,7 @@ controle-dispositivos/
     │   ├── drive.ts                (Service Account no Drive compartilhado: salva/baixa PDFs)
     │   ├── gmail.ts                (envia e-mail em nome de quem está logado, via refresh token)
     │   ├── acesso.ts               (emailAutorizado: lista de contas, com cache de 1 min)
+    │   ├── usuario.ts              (exigirUsuario: sessão + lista, no início de cada server action)
     │   └── sentry-opcoes.ts        (opções comuns do Sentry: só erros, sem Replay, sem PII)
     └── app/
         ├── globals.css
@@ -162,7 +163,15 @@ SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN   (só no build da Vercel: envio d
 
 ## Pendências / próximos passos possíveis
 
-0. **Teste do relatório (06/10/2026)**: o CEIA Noroeste (id 46) está com e-mail temporário `time.google@canoasedu.rs.gov.br`. Depois do teste, voltar para `ceia_prof_analucia@canoasedu.rs.gov.br`, apagar as visitas de teste do banco (para a numeração oficial começar em `REL-2026-0001`) e os PDFs de teste do Drive.
+0. **Reset dos dados de teste (combinado em 07/10/2026, executar "em alguns dias")** — script único, numa transação, com prévia antes de aplicar. **Antes: criar um branch no Neon como backup.** Um simples truncate dos históricos NÃO serve:
+   - `chromebooks`: zerar `status`, `status_atualizado_em`, `status_atualizado_por` de todos (status só existe pelo uso do app; dados do Workspace intactos).
+   - `tablets`: os alterados voltam ao status **original** = `status_anterior` do **primeiro** registro em `tablet_status_historico`; zerar `status_atualizado_em/por`. Preserva os 424 "baixado" que vieram da importação (enchente). Por isso o histórico só pode ser apagado **depois** deste passo.
+   - `tablets.observacoes`: remover só as linhas acrescentadas pelo app (`[dd/mm/aaaa, hh:mm — email] ...`); manter a linha `[Importado da planilha original] ...` (4.900 tablets).
+   - Apagar: `status_historico`, `tablet_status_historico`, `tela_vistoria_historico`, `tela_vistorias`, `telas` (todas são teste, inclusive a da mariah.luz@ na EMEF Carlos Drummond), `visitas`.
+   - `escolas`: `diretor_nome` = null em todas; CEIA Noroeste (id 46) volta para `ceia_prof_analucia@canoasedu.rs.gov.br` (hoje está com `time.google@` para teste).
+   - Manter: `escolas` (nomes/e-mails), `usuarios_autorizados`, `tokens_google`, dados do Workspace e importados.
+   - Fora do banco (manual): apagar PDFs de teste em Drive › Relatórios de visitas › 2026; resolver issues de teste no Sentry.
+0b. **Testes + defesa em profundidade (fazer juntos)**: instalar Vitest (config com alias `@/`, script `npm test`) e escrever testes de unidade para `relatorio.ts` (código, nome de arquivo, `resumoPorStatus`, `itensComStatus`), `telas.ts` (`validarVistoria`, `formatarData`) e `acesso.ts` (com `vi.mock` do banco; domínio, maiúsculas, cache). ~~Criar `exigirUsuario()`~~ — feito em 14/10/2026 (`src/lib/usuario.ts`), usado nas 9 server actions. Actions que lançam erro (status, checkbox, observação) chamam direto; actions que devolvem `{ ok: false }` (telas, relatório) envolvem num try/catch — se lançassem, o componente quebraria e cairia no `global-error`. Falta testar o caso "removido da lista" e cobrir com teste. Depois: testes de integração (num branch do Neon) para o script de reset e para `reverterLocalizado*`; GitHub Actions rodando tsc + lint + testes a cada push.
 
 1. Confirmar que o cron diário de sincronização está de fato disparando sozinho na Vercel (só testamos manualmente até agora).
 2. **Fase 3**: telas interativas implementadas (vistorias por visita). **Mesas interativas ficaram para depois.**

@@ -3,7 +3,6 @@
 import * as Sentry from "@sentry/nextjs";
 import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
 import { db } from "@/db/index";
 import { escolas, visitas } from "@/db/schema";
 import { baixarArquivoDoDrive, salvarPdfNoDrive } from "@/lib/drive";
@@ -12,6 +11,7 @@ import { codigoRelatorio, itensComStatus, nomeArquivoRelatorio } from "@/lib/rel
 import { contarPendentes, montarRetrato } from "@/lib/relatorio-dados";
 import { gerarPdfRelatorio } from "@/lib/relatorio-pdf";
 import { formatarData } from "@/lib/telas";
+import { exigirUsuario, type UsuarioSessao } from "@/lib/usuario";
 
 // Como nas actions de telas: devolve o erro em vez de lançar, porque em produção
 // o Next esconde a mensagem das exceções.
@@ -22,10 +22,13 @@ function mensagem(e: unknown) {
 }
 
 export async function gerarRelatorio(escolaId: number, diretorNomeBruto: string): Promise<ResultadoRelatorio> {
-  const session = await auth();
-  const email = session?.user?.email;
-  if (!email) return { ok: false, erro: "Sessão expirada. Entre novamente." };
-  const nome = session.user?.name || email;
+  let usuario: UsuarioSessao;
+  try {
+    usuario = await exigirUsuario();
+  } catch (e) {
+    return { ok: false, erro: mensagem(e) };
+  }
+  const { email, nome } = usuario;
 
   const diretorNome = diretorNomeBruto.trim();
   if (!diretorNome) return { ok: false, erro: "Informe o nome do(a) diretor(a)" };
@@ -100,10 +103,13 @@ export async function gerarRelatorio(escolaId: number, diretorNomeBruto: string)
 }
 
 export async function enviarRelatorioParaEscola(visitaId: number): Promise<ResultadoRelatorio> {
-  const session = await auth();
-  const email = session?.user?.email;
-  if (!email) return { ok: false, erro: "Sessão expirada. Entre novamente." };
-  const nome = session.user?.name || email;
+  let usuario: UsuarioSessao;
+  try {
+    usuario = await exigirUsuario();
+  } catch (e) {
+    return { ok: false, erro: mensagem(e) };
+  }
+  const { email, nome } = usuario;
 
   const [linha] = await db
     .select({ visita: visitas, emailEscola: escolas.email })
