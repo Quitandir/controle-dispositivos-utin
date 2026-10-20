@@ -19,22 +19,35 @@ export async function sincronizarChromebooks() {
   const todasEscolas = await db.select().from(escolas);
   const escolaPorOU = new Map(todasEscolas.map((e) => [e.orgUnitPath, e.id]));
 
-  let pageToken: string | undefined = undefined;
   let totalSincronizados = 0;
   let totalSemEscola = 0;
   let totalDesprovisionados = 0;
   let paginas = 0;
   const agora = new Date();
 
-  do {
-    const res: { data: admin_directory_v1.Schema$ChromeOsDevices } = await admin.chromeosdevices.list({
+  // O Google devolve no máximo 100 aparelhos por página, mesmo pedindo mais (~117 páginas).
+  const listar = (pageToken?: string) =>
+    admin.chromeosdevices.list({
       customerId: "my_customer",
       maxResults: 200,
-      projection: "FULL",
+      projection: "FULL", // necessário para recentUsers
+      // Só os campos usados abaixo: o FULL completo traz dezenas de dados por aparelho
+      // (CPU, atividade, rede...) que o sistema descarta.
+      fields:
+        "nextPageToken,chromeosdevices(deviceId,annotatedAssetId,serialNumber,model,notes,orgUnitPath,status,lastSync,recentUsers(email))",
       pageToken,
     });
 
-    const devices: admin_directory_v1.Schema$ChromeOsDevice[] = res.data.chromeosdevices ?? [];
+  let pagina = await listar();
+  for (;;) {
+    const devices: admin_directory_v1.Schema$ChromeOsDevice[] = pagina.data.chromeosdevices ?? [];
+    const proximoToken = pagina.data.nextPageToken ?? undefined;
+
+    // Busca a próxima página no Google enquanto grava esta no banco. Ganho modesto (~7%,
+    // 169s → 157s medidos em 20/10/2026): quase todo o tempo é a resposta do Google (~1,3s
+    // por página), e as páginas são sequenciais — cada uma traz o token da seguinte.
+    const proxima = proximoToken ? listar(proximoToken) : null;
+    proxima?.catch(() => {}); // se a gravação falhar antes, evita "unhandled rejection" desta busca
 
     if (devices.length > 0) {
       const lote = devices.map((d: admin_directory_v1.Schema$ChromeOsDevice) => {
@@ -57,7 +70,7 @@ export async function sincronizarChromebooks() {
         };
       });
 
-      // um único INSERT com todo o lote da página (até 200 linhas de uma vez)
+      // um único INSERT com todo o lote da página
       await db
         .insert(chromebooks)
         .values(lote)
@@ -83,8 +96,9 @@ export async function sincronizarChromebooks() {
     }
 
     paginas++;
-    pageToken = res.data.nextPageToken ?? undefined;
-  } while (pageToken);
+    if (!proxima) break;
+    pagina = await proxima;
+  }
 
   return { totalSincronizados, totalSemEscola, totalDesprovisionados, paginas };
 }
