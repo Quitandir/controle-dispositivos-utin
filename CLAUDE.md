@@ -7,6 +7,8 @@ Domínio em produção: **https://controle-dispositivos-utin.vercel.app**
 ## Stack
 
 - Next.js 16.3.6, App Router, Turbopack, TypeScript, `src/` dir
+- Node **24.x** em todo lugar: `engines` no `package.json` (a Vercel obedece e sobrepõe o painel), `@types/node` ^24 e Node local 24 — alinhados em 14/10/2026
+- Testes: Vitest 5 (`devDependencies`); arquivos `*.test.ts` ao lado do arquivo testado
 - Tailwind CSS v4 (tokens de tema via `@theme inline` em `globals.css`), identidade visual reaproveitada do Onboarding EJA (papel creme `--color-paper`, verde-petróleo `--color-teal`, terracota `--color-terracotta`, fontes Fraunces/Work Sans/IBM Plex Mono via `next/font`)
 - Auth.js v5 (`next-auth@beta`), provedor Google, login restrito a `@canoasedu.rs.gov.br`
 - Banco: Neon Postgres (serverless, free tier), driver `pg` (node-postgres) + Drizzle ORM — **não** usar `@neondatabase/serverless`, ver seção de pegadinhas
@@ -25,6 +27,7 @@ controle-dispositivos/
 ├── seed-escolas2.ts                (seed: 39 EMEIs + 4 categorias administrativas, já rodado)
 ├── import-tablets.ts               (import único dos 5.001 tablets, já rodado; o tablets.csv foi removido do repo e do histórico — *.csv está no .gitignore)
 ├── seed-emails-escolas.ts          (e-mail institucional de cada escola, confere id+nome antes de gravar)
+├── reset-dados-teste.ts           (reset dos dados de teste: prévia por padrão; --aplicar <endpoint-neon>)
 ├── seed-usuarios.ts                (contas autorizadas a entrar; só adiciona, nunca remove)
 └── src/
     ├── auth.ts                     (config do Auth.js: Google + trava de domínio)
@@ -163,7 +166,7 @@ SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN   (só no build da Vercel: envio d
 
 ## Pendências / próximos passos possíveis
 
-0. **Reset dos dados de teste (combinado em 07/10/2026, executar "em alguns dias")** — script único, numa transação, com prévia antes de aplicar. **Antes: criar um branch no Neon como backup.** Um simples truncate dos históricos NÃO serve:
+0. **Reset dos dados de teste — script pronto (`reset-dados-teste.ts`, 20/10/2026); reset real marcado para quinta 22/10, antes da ida a campo na segunda 26/10.** Ordem: ensaiar numa branch descartável do Neon → criar branch de backup → aplicar em produção → conferir. O script confere tudo antes do commit e faz rollback se algo divergir. **Antes: criar um branch no Neon como backup.** Um simples truncate dos históricos NÃO serve:
    - `chromebooks`: zerar `status`, `status_atualizado_em`, `status_atualizado_por` de todos (status só existe pelo uso do app; dados do Workspace intactos).
    - `tablets`: os alterados voltam ao status **original** = `status_anterior` do **primeiro** registro em `tablet_status_historico`; zerar `status_atualizado_em/por`. Preserva os 424 "baixado" que vieram da importação (enchente). Por isso o histórico só pode ser apagado **depois** deste passo.
    - `tablets.observacoes`: remover só as linhas acrescentadas pelo app (`[dd/mm/aaaa, hh:mm — email] ...`); manter a linha `[Importado da planilha original] ...` (4.900 tablets).
@@ -171,9 +174,9 @@ SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN   (só no build da Vercel: envio d
    - `escolas`: `diretor_nome` = null em todas; CEIA Noroeste (id 46) volta para `ceia_prof_analucia@canoasedu.rs.gov.br` (hoje está com `time.google@` para teste).
    - Manter: `escolas` (nomes/e-mails), `usuarios_autorizados`, `tokens_google`, dados do Workspace e importados.
    - Fora do banco (manual): apagar PDFs de teste em Drive › Relatórios de visitas › 2026; resolver issues de teste no Sentry.
-0b. **Testes + defesa em profundidade (fazer juntos)**: instalar Vitest (config com alias `@/`, script `npm test`) e escrever testes de unidade para `relatorio.ts` (código, nome de arquivo, `resumoPorStatus`, `itensComStatus`), `telas.ts` (`validarVistoria`, `formatarData`) e `acesso.ts` (com `vi.mock` do banco; domínio, maiúsculas, cache). ~~Criar `exigirUsuario()`~~ — feito em 14/10/2026 (`src/lib/usuario.ts`), usado nas 9 server actions. Actions que lançam erro (status, checkbox, observação) chamam direto; actions que devolvem `{ ok: false }` (telas, relatório) envolvem num try/catch — se lançassem, o componente quebraria e cairia no `global-error`. Falta testar o caso "removido da lista" e cobrir com teste. Depois: testes de integração (num branch do Neon) para o script de reset e para `reverterLocalizado*`; GitHub Actions rodando tsc + lint + testes a cada push.
+0b. **Testes + defesa em profundidade (fazer juntos)**: **Progresso (14/10/2026):** Vitest instalado (exigiu alinhar Node/`@types/node` para 24); `src/lib/relatorio.test.ts` iniciado pelo próprio usuário com 5 testes de `codigoRelatorio`, todos passando — revisão pendente: nomes duplicados/vagos nos `it`, remover cópia comentada da função, padronizar aspas duplas e ponto e vírgula, fazer um teste falhar de propósito (etapa 3). Script `npm test` (modo watch) já criado. Próximas etapas: resto do `relatorio.ts` (`nomeArquivoRelatorio`, `resumoPorStatus`, `itensComStatus`), `telas.ts`, depois `acesso.ts` com `vi.mock` (aí será preciso configurar o alias `@/` no Vitest). Plano original: instalar Vitest (config com alias `@/`, script `npm test`) e escrever testes de unidade para `relatorio.ts` (código, nome de arquivo, `resumoPorStatus`, `itensComStatus`), `telas.ts` (`validarVistoria`, `formatarData`) e `acesso.ts` (com `vi.mock` do banco; domínio, maiúsculas, cache). ~~Criar `exigirUsuario()`~~ — feito em 14/10/2026 (`src/lib/usuario.ts`), usado nas 9 server actions. Actions que lançam erro (status, checkbox, observação) chamam direto; actions que devolvem `{ ok: false }` (telas, relatório) envolvem num try/catch — se lançassem, o componente quebraria e cairia no `global-error`. Falta testar o caso "removido da lista" e cobrir com teste. Depois: testes de integração (num branch do Neon) para o script de reset e para `reverterLocalizado*`; GitHub Actions rodando tsc + lint + testes a cada push.
 
-1. Confirmar que o cron diário de sincronização está de fato disparando sozinho na Vercel (só testamos manualmente até agora).
+1. ~~Confirmar o cron diário~~ — conferido em 20/10/2026: disparava, mas era **encerrado aos 60s** (maxDuration) depois de ~3.900 dos 11.629 aparelhos; os demais estavam sem atualizar desde 24/09. Corrigido: `maxDuration = 300` (máximo do Hobby com Fluid Compute), `fields` só com o necessário e busca da próxima página em paralelo com a gravação. Sync completa medida localmente: 157s (o Google responde ~100 aparelhos por página, ~1,3s cada). Alerta no Sentry se passar de 200s. Depois do deploy, conferir nos logs da Vercel quanto o cron leva lá.
 2. **Fase 3**: telas interativas implementadas (vistorias por visita). **Mesas interativas ficaram para depois.**
 3. Considerar agrupar/filtrar a home por categoria (EMEF/EMEI/CEIA/Administrativo), já que são 89 escolas na lista.
 4. Decisão em aberto sobre o plano da Vercel: uso é profissional (não pessoal), o que tecnicamente exigiria o plano Pro pelos termos de uso do Hobby — ainda não resolvido.
