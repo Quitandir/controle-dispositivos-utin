@@ -118,7 +118,8 @@ Schema é aplicado via `npx drizzle-kit push` — **não há pasta de migrations
 ## Infraestrutura já configurada
 
 - **GCP**: projeto `controle-dispositivos`. Service Account `device-sync-service` com Domain-Wide Delegation (Client ID `112935184877576891103`), autorizada no Admin Console do Workspace só com o escopo `admin.directory.device.chromeos.readonly` (somente leitura). Tela de consentimento OAuth tipo "Interno". Cliente OAuth Web separado para o login (NextAuth) — Client Secret já foi rotacionado uma vez por ter aparecido numa captura de tela.
-- **Neon**: projeto `controle-dispositivos`. Produção usa a connection string **com pooler** (`-pooler` no host).
+- **Neon**: projeto `controle-dispositivos`. Produção usa a connection string **com pooler** (`-pooler` no host). Branches: `production` (endpoint `ep-solitary-hill`), **`dev`** (`ep-solitary-term`, criada em 22/10/2026 a partir da produção já limpa; e-mails de todas as escolas trocados para `time.google@` para nenhum teste mandar e-mail a escola real) e `backup-pre-producao-2026-10-22` (não apagar).
+- **Ambientes locais**: `.env.local` aponta para a branch **`dev`**. A string da produção fica só em `.env.producao` (ignorado pelo git) — para rodar algo em produção de propósito, definir `DATABASE_URL` a partir dele.
 - **Vercel**: projeto `controle-dispositivos-utin`. Cron diário (`vercel.json`) chama `/api/sync/chromebooks`. **O Framework Preset precisou ser corrigido manualmente para "Next.js"** — na importação inicial não foi detectado, causando 404 em todas as rotas.
 
 ### Variáveis de ambiente (nomes — valores só no `.env.local` e no painel da Vercel)
@@ -165,6 +166,10 @@ SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN   (só no build da Vercel: envio d
 - **CEIA**: a tabela `escolas` guarda o nome completo (`CEIA Nordeste - Centro de Educação Inclusiva e Acessibilidade`), não a forma curta — já corrigido, mas vale lembrar se aparecer alguma fonte de dado nova usando o nome curto.
 
 ## Pendências / próximos passos possíveis
+
+- **Ida a campo: segunda 26/10/2026** (primeiro uso real).
+- **Fase 4, restante (depois de segunda)**: branch `dev` no Git; variáveis "Preview" na Vercel apontando para a branch `dev` do Neon e para uma pasta de teste no Drive; cadastrar a URL fixa da prévia da branch `dev` como redirect URI no cliente OAuth do Google.
+- **Dois tablets na mesma escola (adiado em 22/10)**: não há atualização em tempo real, e o `SeletorStatus` guarda o status no `useState` e ignora o valor novo vindo do servidor — o contador do topo atualiza, mas a lista fica desatualizada até recarregar. Proposta: (1) sincronizar o seletor com a prop quando ela mudar; (2) `router.refresh()` a cada ~30s e ao voltar o foco para o app. Última gravação vence; o histórico registra tudo.
 
 0. ~~Reset dos dados de teste~~ — **feito em 22/10/2026** em produção (ensaiado antes na branch `ensaio-reset`). Backup no Neon: branch **`backup-pre-producao-2026-10-22`** (não apagar). Conferido por hash: dados do Workspace, cadastro dos tablets, tablets não alterados, escolas, usuários e tokens intactos; 63 tablets de teste voltaram a "não conferido"; 424 "baixado" preservados. Numeração de relatórios recomeça em REL-2026-0001. Detalhes do plano original: Ordem: ensaiar numa branch descartável do Neon → criar branch de backup → aplicar em produção → conferir. O script confere tudo antes do commit e faz rollback se algo divergir. **Antes: criar um branch no Neon como backup.** Um simples truncate dos históricos NÃO serve:
    - `chromebooks`: zerar `status`, `status_atualizado_em`, `status_atualizado_por` de todos (status só existe pelo uso do app; dados do Workspace intactos).
