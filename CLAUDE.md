@@ -56,6 +56,7 @@ controle-dispositivos/
         ├── components/
         │   ├── Header.tsx
         │   ├── SeletorStatus.tsx       (checkbox "localizado" + dropdown de status; tipo chromebook|tablet)
+        │   ├── FiltroStatus.tsx        (dropdown de filtro das listas de Chromebooks e tablets)
         │   ├── IdentificarUsuarioSentry.tsx (associa erros do navegador ao e-mail do usuário)
         │   ├── CampoObservacoes.tsx    (log de observações dos tablets, acumulativo)
         │   ├── ListaChromebooks.tsx    (lista + busca por patrimônio)
@@ -174,8 +175,8 @@ SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN   (só no build da Vercel: envio d
 ### Novas implementações (prioridade, vindas da ida a campo — fazer na branch `dev`)
 
 1. ~~E-mail do relatório com cópia oculta (Cco) para o time~~ — feito em 04/11/2026 (`time.google@`, grupo do time; respostas também vão para lá).
-2. ~~Novo corpo do texto do e-mail~~ — feito em 04/11/2026: patrimônios por tipo, orientação de 5 + 5 dias úteis e link da Delegacia Online; o PDF segue a mesma orientação (`relatorio.ts`). O e-mail tem versão texto e HTML (negrito marcado com `**` nos textos). Falta testar o negrito na prévia.
-3. **Filtro dropdown por status** nas listas de tablets e de Chromebooks da escola.
+2. ~~Novo corpo do texto do e-mail~~ — feito em 04/11/2026: patrimônios por tipo, orientação de 5 + 5 dias úteis e link da Delegacia Online; o PDF segue a mesma orientação (`relatorio.ts`). O e-mail tem versão texto e HTML (negrito marcado com `**` nos textos). Publicado em produção.
+3. ~~Filtro dropdown por status~~ — feito em 04/11/2026 nas listas de tablets e de Chromebooks (`FiltroStatus.tsx`, `passaNoFiltro`). Com filtro ativo, o item some da lista ao mudar de status, de propósito: a lista encolhe conforme a conferência avança.
 4. **Dividir a home por categoria**: EMEF, EMEI e "Outras Instituições" (CEIA + Administrativo, confirmado em 04/11/2026). Substitui o antigo item 3 abaixo.
 5. **Dois tablets na mesma escola** (adiado em 22/10): não há atualização em tempo real, e o `SeletorStatus` guarda o status no `useState` e ignora o valor novo vindo do servidor — o contador do topo atualiza, mas a lista fica desatualizada até recarregar. Proposta: (1) sincronizar o seletor com a prop quando ela mudar; (2) `router.refresh()` a cada ~30s e ao voltar o foco para o app. Última gravação vence; o histórico registra tudo.
 

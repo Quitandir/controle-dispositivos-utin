@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import FiltroStatus from "./FiltroStatus";
 import SeletorStatus from "./SeletorStatus";
 import CampoObservacoes from "./CampoObservacoes";
+import { FILTRO_TODOS, passaNoFiltro, STATUS_OPCOES_TABLET } from "@/lib/status";
 
 export type ItemTablet = {
   id: number;
@@ -21,26 +23,30 @@ export default function ListaTablets({
   imeisDuplicados: string[];
 }) {
   const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState(FILTRO_TODOS);
   const termo = busca.trim().toLowerCase();
   const duplicados = useMemo(() => new Set(imeisDuplicados), [imeisDuplicados]);
 
   const filtrados = useMemo(
-    () => (termo ? itens.filter((i) => i.patrimonio.toLowerCase().includes(termo)) : itens),
-    [itens, termo],
+    () => itens.filter((i) => i.patrimonio.toLowerCase().includes(termo) && passaNoFiltro(i.status, filtro)),
+    [itens, termo, filtro],
   );
 
   return (
     <>
       <div className="sticky top-0 z-10 -mx-4 mt-6 bg-paper px-4 py-3">
-        <input
-          type="search"
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          placeholder="Buscar por patrimônio"
-          aria-label="Buscar por patrimônio"
-          className="min-h-12 w-full rounded-xl border-2 border-line bg-white px-4 text-base outline-none focus:border-teal md:max-w-sm"
-        />
-        {termo && (
+        <div className="flex flex-col gap-2 md:flex-row md:gap-5">
+          <input
+            type="search"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por patrimônio"
+            aria-label="Buscar por patrimônio"
+            className="min-h-12 w-full rounded-xl border-2 border-line bg-white px-4 text-base outline-none focus:border-teal md:max-w-sm"
+          />
+          <FiltroStatus valor={filtro} opcoes={STATUS_OPCOES_TABLET} aoMudar={setFiltro} />
+        </div>
+        {(termo || filtro !== FILTRO_TODOS) && (
           <p className="mt-2 font-mono text-xs text-ink-soft">
             {filtrados.length} de {itens.length} encontrados
           </p>
@@ -88,7 +94,7 @@ export default function ListaTablets({
 
       {itens.length === 0 && <p className="mt-8 text-ink-soft">Nenhum tablet vinculado a esta escola.</p>}
       {itens.length > 0 && filtrados.length === 0 && (
-        <p className="mt-8 text-ink-soft">Nenhum patrimônio encontrado para “{busca.trim()}”.</p>
+        <p className="mt-8 text-ink-soft">Nenhum dispositivo encontrado com esses filtros.</p>
       )}
     </>
   );

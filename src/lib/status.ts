@@ -1,3 +1,12 @@
+export const FILTRO_TODOS = "todos";
+export const FILTRO_NAO_CONFERIDO = "nao_conferido";
+
+export function passaNoFiltro(status: string | null, filtro: string) {
+  if (filtro === FILTRO_TODOS) return true;
+  if (filtro === FILTRO_NAO_CONFERIDO) return status === null;
+  return status === filtro;
+}
+
 export const STATUS_OPCOES = [
   { valor: "localizado", rotulo: "Localizado" },
   { valor: "nao_localizado", rotulo: "Não localizado" },
