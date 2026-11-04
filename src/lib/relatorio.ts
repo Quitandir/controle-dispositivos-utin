@@ -1,5 +1,6 @@
 // Tipos e funções puras do relatório de visita (sem acesso a banco).
 import { STATUS_OPCOES_TABLET } from "./status";
+import { formatarData } from "./telas";
 
 // Retrato congelado da conferência, gravado em visitas.retrato (jsonb).
 export type RetratoVisita = {
@@ -107,10 +108,64 @@ export function itensComStatus(r: RetratoVisita, status: string): ItemPendencia[
 }
 
 // Textos fixos do relatório e do e-mail — ajustar aqui se a orientação mudar.
-export const TEXTO_ORIENTACAO_NAO_LOCALIZADOS =
-  "Os equipamentos relacionados acima não foram localizados durante a conferência. " +
-  "Solicitamos que a equipe diretiva realize a busca na escola. Caso não sejam encontrados, " +
-  "deverá ser registrado boletim de ocorrência do extravio e encaminhada cópia à UTIN.";
+export const URL_DELEGACIA_ONLINE =
+  "https://www.delegaciaonline.rs.gov.br/dol/#!/registroindex/Furto%20~2F%20Roubo/avisos";
+
+// No PDF, o endereço da delegacia entra entre os dois trechos, como link.
+export const TEXTO_ORIENTACAO_NAO_LOCALIZADOS = {
+  antesDoLink:
+    "Os equipamentos relacionados acima não foram localizados durante a conferência. " +
+    "A equipe diretiva deve realizar a busca na escola e, em até 5 dias úteis a partir do recebimento " +
+    "do relatório por e-mail, responder a esse e-mail com fotos dos equipamentos encontrados, nas quais " +
+    "o número de patrimônio esteja visível. Caso algum equipamento não seja localizado nesse prazo, " +
+    "a direção deve registrar boletim de ocorrência pela Delegacia Online:\n",
+  depoisDoLink:
+    "\nA cópia do BO deve ser enviada em resposta ao mesmo e-mail, em até 5 dias úteis após o fim do prazo de busca.",
+};
+
+const ORIENTACOES_EMAIL_NAO_LOCALIZADOS = [
+  "Orientações:",
+  "",
+  "1. Realizar a busca dos equipamentos na escola e, em até 5 dias úteis a partir do recebimento deste e-mail, " +
+    "responder a esta mensagem com fotos dos equipamentos encontrados, nas quais o número de patrimônio esteja visível.",
+  "",
+  "2. Caso algum equipamento não seja localizado nesse prazo, a direção deve registrar um boletim de ocorrência pela Delegacia Online:",
+  URL_DELEGACIA_ONLINE,
+  "A cópia do BO deve ser enviada em resposta a este e-mail em até 5 dias úteis após o fim do prazo de busca.",
+];
+
+export function textoEmailRelatorio(r: RetratoVisita, codigo: string, nomeRemetente: string): string {
+  const naoLocalizados = itensComStatus(r, "nao_localizado");
+  const lista = (titulo: string, tipo: ItemPendencia["tipo"]) => {
+    const itens = naoLocalizados.filter((i) => i.tipo === tipo);
+    if (!itens.length) return [];
+    return [
+      `${titulo} (${itens.length}):`,
+      ...itens.map((i) => `- ${i.patrimonio || `sem patrimônio (série ${i.identificacao ?? "não informada"})`}`),
+      "",
+    ];
+  };
+
+  return [
+    `Prezada equipe diretiva da ${r.escola.nome},`,
+    "",
+    `Segue em anexo o relatório ${codigo}, referente à conferência de dispositivos realizada em ${formatarData(r.dataVisita)}, assinado pela direção e pela UTIN.`,
+    ...(naoLocalizados.length > 0
+      ? [
+          "",
+          "Os seguintes dispositivos não foram localizados durante a conferência:",
+          "",
+          ...lista("Chromebooks", "Chromebook"),
+          ...lista("Tablets", "Tablet"),
+          ...ORIENTACOES_EMAIL_NAO_LOCALIZADOS,
+        ]
+      : []),
+    "",
+    "Atenciosamente,",
+    nomeRemetente,
+    "UTIN · Secretaria Municipal da Educação de Canoas",
+  ].join("\n");
+}
 
 export const TEXTO_DECLARACAO =
   "Declaramos que a conferência dos dispositivos desta unidade escolar foi realizada na data " +

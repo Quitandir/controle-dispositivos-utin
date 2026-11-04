@@ -7,10 +7,9 @@ import { db } from "@/db/index";
 import { escolas, visitas } from "@/db/schema";
 import { baixarArquivoDoDrive, salvarPdfNoDrive } from "@/lib/drive";
 import { enviarEmail } from "@/lib/gmail";
-import { codigoRelatorio, itensComStatus, nomeArquivoRelatorio } from "@/lib/relatorio";
+import { codigoRelatorio, nomeArquivoRelatorio, textoEmailRelatorio } from "@/lib/relatorio";
 import { contarPendentes, montarRetrato } from "@/lib/relatorio-dados";
 import { gerarPdfRelatorio } from "@/lib/relatorio-pdf";
-import { formatarData } from "@/lib/telas";
 import { exigirUsuario, type UsuarioSessao } from "@/lib/usuario";
 
 const EMAIL_TIME = "time.google@canoasedu.rs.gov.br";
@@ -125,24 +124,6 @@ export async function enviarRelatorioParaEscola(visitaId: number): Promise<Resul
 
   const codigo = codigoRelatorio(visita.ano, visita.numero, visita.versao);
   const r = visita.retrato;
-  const naoLocalizados = itensComStatus(r, "nao_localizado").length;
-
-  const texto = [
-    `Prezada equipe diretiva da ${r.escola.nome},`,
-    "",
-    `Segue em anexo o relatório ${codigo}, referente à conferência de dispositivos realizada em ${formatarData(r.dataVisita)}, assinado pela direção e pela UTIN.`,
-    ...(naoLocalizados > 0
-      ? [
-          "",
-          `O relatório lista ${naoLocalizados} dispositivo${naoLocalizados === 1 ? "" : "s"} não localizado${naoLocalizados === 1 ? "" : "s"}. ` +
-            "Solicitamos a busca na escola e, caso não sejam encontrados, o registro de boletim de ocorrência do extravio, com envio de cópia à UTIN.",
-        ]
-      : []),
-    "",
-    "Atenciosamente,",
-    nome,
-    "UTIN · Secretaria Municipal da Educação de Canoas",
-  ].join("\n");
 
   try {
     // versão atual do arquivo, já com as assinaturas feitas no tablet
@@ -152,8 +133,9 @@ export async function enviarRelatorioParaEscola(visitaId: number): Promise<Resul
       para: emailEscola,
       cc: email,
       cco: EMAIL_TIME,
+      responderPara: EMAIL_TIME,
       assunto: `Relatório de conferência de dispositivos — ${r.escola.nome} — ${codigo}`,
-      texto,
+      texto: textoEmailRelatorio(r, codigo, nome),
       anexo: { nome: nomeArquivoRelatorio(r.escola.nome, codigo), conteudo: pdf },
     });
   } catch (e) {

@@ -1,8 +1,9 @@
-import { Document, Font, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Font, Link, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { rotuloOpcao, formatarData, type CampoOpcao } from "./telas";
 import {
   TEXTO_DECLARACAO,
   TEXTO_ORIENTACAO_NAO_LOCALIZADOS,
+  URL_DELEGACIA_ONLINE,
   itensComStatus,
   resumoPorStatus,
   rotuloStatus,
@@ -203,7 +204,13 @@ function RelatorioDocumento({ retrato: r, cab }: { retrato: RetratoVisita; cab: 
         {naoLocalizados.length > 0 ? (
           <>
             <Tabela itens={naoLocalizados} colunas={colunasPendencia} />
-            <Text style={s.paragrafo}>{TEXTO_ORIENTACAO_NAO_LOCALIZADOS}</Text>
+            <Text style={s.paragrafo}>
+              {TEXTO_ORIENTACAO_NAO_LOCALIZADOS.antesDoLink}
+              <Link src={URL_DELEGACIA_ONLINE} style={{ color: COR.teal }}>
+                {URL_DELEGACIA_ONLINE}
+              </Link>
+              {TEXTO_ORIENTACAO_NAO_LOCALIZADOS.depoisDoLink}
+            </Text>
           </>
         ) : (
           <Text style={s.vazio}>Todos os dispositivos foram localizados.</Text>

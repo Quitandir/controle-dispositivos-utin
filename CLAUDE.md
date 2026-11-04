@@ -152,7 +152,7 @@ SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN   (só no build da Vercel: envio d
 - **Relatório de visita**: só pode ser gerado quando todos os Chromebooks e tablets da escola têm status. Grava um **retrato congelado** em `visitas.retrato` — o PDF assinado corresponde a ele mesmo que os status mudem depois. Refazer na mesma escola/ano mantém o número e sobe a versão (`REL-2026-0042 v2`); a versão anterior continua no Drive.
 - PDF salvo em `Relatórios de visitas/<ano>/` (pasta do ano criada sozinha), sem subpastas por escola. A Service Account entra no Drive compartilhado como **membro** (Administrador de conteúdo) — **sem** novo escopo na delegação de domínio.
 - Assinatura: **a lápis no app do Drive no tablet** (diretor + pessoa do time), não assinatura eletrônica. O Drive salva a anotação **no mesmo arquivo** (testado), então "Enviar à escola" baixa a versão atual e anexa.
-- E-mail sai **da conta de quem está logado** (escopo `gmail.send` no login, refresh token na tabela `tokensGoogle`), com cópia para a própria pessoa e cópia oculta para `time.google@` (grupo do time). Destino: `escolas.email` (padrão com sublinhado, `emef_x@`).
+- E-mail sai **da conta de quem está logado** (escopo `gmail.send` no login, refresh token na tabela `tokensGoogle`), com cópia para a própria pessoa e cópia oculta para `time.google@` (grupo do time); as respostas vão para `time.google@` (`Reply-To`). Destino: `escolas.email` (padrão com sublinhado, `emef_x@`).
 - **Acesso restrito a uma lista** (`usuariosAutorizados`), mantida por script/SQL, sem tela. Conferida no login **e a cada navegação** (callback `authorized` do proxy), com cache de 1 min — remover alguém corta o acesso mesmo com sessão válida. `/entrar` trata "com sessão mas fora da lista" para não entrar em loop com o proxy.
 - **Checkbox "localizado"** ao lado do dropdown: marcar grava `localizado`; desmarcar volta ao status anterior **segundo o histórico** (`reverterLocalizado*`), podendo voltar a `null` (não conferido).
 - **Sentry**: só erros (`tracesSampleRate: 0`), **sem Session Replay** e `sendDefaultPii: false` — as telas mostram e-mails de alunos. Usuário identificado só pelo e-mail da equipe. Erros de login vão pelo `logger` do Auth.js; falhas de Drive/Gmail nas actions do relatório são capturadas explicitamente (elas devolvem `{ok:false}` em vez de lançar).
@@ -173,8 +173,8 @@ SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN   (só no build da Vercel: envio d
 
 ### Novas implementações (prioridade, vindas da ida a campo — fazer na branch `dev`)
 
-1. **E-mail do relatório com cópia oculta (Cco) para o time** (hoje vai só com cópia para quem está logado).
-2. **Novo corpo do texto do e-mail** enviado à escola.
+1. ~~E-mail do relatório com cópia oculta (Cco) para o time~~ — pronto e testado na prévia em 04/11/2026 (`time.google@`, grupo do time); falta ir para a `main`.
+2. **Novo corpo do texto do e-mail** enviado à escola: implementado na `dev` (patrimônios por tipo, orientação de 5 + 5 dias úteis, link da Delegacia Online; o PDF segue a mesma orientação). Falta testar na prévia.
 3. **Filtro dropdown por status** nas listas de tablets e de Chromebooks da escola.
 4. **Dividir a home por categoria**: EMEF, EMEI e "Outras Instituições" (CEIA + Administrativo, confirmado em 04/11/2026). Substitui o antigo item 3 abaixo.
 5. **Dois tablets na mesma escola** (adiado em 22/10): não há atualização em tempo real, e o `SeletorStatus` guarda o status no `useState` e ignora o valor novo vindo do servidor — o contador do topo atualiza, mas a lista fica desatualizada até recarregar. Proposta: (1) sincronizar o seletor com a prop quando ela mudar; (2) `router.refresh()` a cada ~30s e ao voltar o foco para o app. Última gravação vence; o histórico registra tudo.

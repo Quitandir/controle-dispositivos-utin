@@ -17,13 +17,14 @@ type Email = {
   para: string;
   cc?: string;
   cco?: string;
+  responderPara?: string; // para onde vão as respostas, se não for o remetente
   assunto: string;
   texto: string;
   anexo: { nome: string; conteudo: Buffer };
 };
 
 // Envia em nome de quem está logado, usando o refresh token guardado no login.
-export async function enviarEmail({ remetente, para, cc, cco, assunto, texto, anexo }: Email) {
+export async function enviarEmail({ remetente, para, cc, cco, responderPara, assunto, texto, anexo }: Email) {
   const [token] = await db.select().from(tokensGoogle).where(eq(tokensGoogle.email, remetente));
   if (!token) throw new Error(MSG_REAUTORIZAR);
 
@@ -37,6 +38,7 @@ export async function enviarEmail({ remetente, para, cc, cco, assunto, texto, an
     `To: ${para}`,
     ...(cc ? [`Cc: ${cc}`] : []),
     ...(cco ? [`Bcc: ${cco}`] : []),
+    ...(responderPara ? [`Reply-To: ${responderPara}`] : []),
     `Subject: ${codificar(assunto)}`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/mixed; boundary="${fronteira}"`,
