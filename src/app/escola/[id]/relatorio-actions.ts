@@ -7,7 +7,7 @@ import { db } from "@/db/index";
 import { escolas, visitas } from "@/db/schema";
 import { baixarArquivoDoDrive, salvarPdfNoDrive } from "@/lib/drive";
 import { enviarEmail } from "@/lib/gmail";
-import { codigoRelatorio, nomeArquivoRelatorio, textoEmailRelatorio } from "@/lib/relatorio";
+import { codigoRelatorio, htmlEmailRelatorio, nomeArquivoRelatorio, textoEmailRelatorio } from "@/lib/relatorio";
 import { contarPendentes, montarRetrato } from "@/lib/relatorio-dados";
 import { gerarPdfRelatorio } from "@/lib/relatorio-pdf";
 import { exigirUsuario, type UsuarioSessao } from "@/lib/usuario";
@@ -136,6 +136,7 @@ export async function enviarRelatorioParaEscola(visitaId: number): Promise<Resul
       responderPara: EMAIL_TIME,
       assunto: `Relatório de conferência de dispositivos — ${r.escola.nome} — ${codigo}`,
       texto: textoEmailRelatorio(r, codigo, nome),
+      html: htmlEmailRelatorio(r, codigo, nome),
       anexo: { nome: nomeArquivoRelatorio(r.escola.nome, codigo), conteudo: pdf },
     });
   } catch (e) {

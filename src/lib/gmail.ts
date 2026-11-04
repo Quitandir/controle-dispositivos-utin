@@ -20,11 +20,12 @@ type Email = {
   responderPara?: string; // para onde vão as respostas, se não for o remetente
   assunto: string;
   texto: string;
+  html: string;
   anexo: { nome: string; conteudo: Buffer };
 };
 
 // Envia em nome de quem está logado, usando o refresh token guardado no login.
-export async function enviarEmail({ remetente, para, cc, cco, responderPara, assunto, texto, anexo }: Email) {
+export async function enviarEmail({ remetente, para, cc, cco, responderPara, assunto, texto, html, anexo }: Email) {
   const [token] = await db.select().from(tokensGoogle).where(eq(tokensGoogle.email, remetente));
   if (!token) throw new Error(MSG_REAUTORIZAR);
 
@@ -33,6 +34,8 @@ export async function enviarEmail({ remetente, para, cc, cco, responderPara, ass
   const gmail = google.gmail({ version: "v1", auth: oauth });
 
   const fronteira = `----relatorio-${Date.now()}`;
+  // a fronteira interna não pode começar igual à externa, ou o leitor de e-mail se confunde
+  const fronteiraCorpo = `----corpo-${Date.now()}`;
   const mensagem = [
     `From: ${remetente}`,
     `To: ${para}`,
@@ -44,10 +47,19 @@ export async function enviarEmail({ remetente, para, cc, cco, responderPara, ass
     `Content-Type: multipart/mixed; boundary="${fronteira}"`,
     "",
     `--${fronteira}`,
+    `Content-Type: multipart/alternative; boundary="${fronteiraCorpo}"`,
+    "",
+    `--${fronteiraCorpo}`,
     'Content-Type: text/plain; charset="UTF-8"',
     "Content-Transfer-Encoding: base64",
     "",
     quebrar(Buffer.from(texto, "utf-8").toString("base64")),
+    `--${fronteiraCorpo}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    quebrar(Buffer.from(html, "utf-8").toString("base64")),
+    `--${fronteiraCorpo}--`,
     `--${fronteira}`,
     `Content-Type: application/pdf; name="${codificar(anexo.nome)}"`,
     `Content-Disposition: attachment; filename="${codificar(anexo.nome)}"`,

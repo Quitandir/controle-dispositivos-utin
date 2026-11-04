@@ -123,18 +123,19 @@ export const TEXTO_ORIENTACAO_NAO_LOCALIZADOS = {
     "\nA cópia do BO deve ser enviada em resposta ao mesmo e-mail, em até 5 dias úteis após o fim do prazo de busca.",
 };
 
+// **assim** = negrito na versão HTML do e-mail
 const ORIENTACOES_EMAIL_NAO_LOCALIZADOS = [
   "Orientações:",
   "",
-  "1. Realizar a busca dos equipamentos na escola e, em até 5 dias úteis a partir do recebimento deste e-mail, " +
+  "1. Realizar a busca dos equipamentos na escola e, **em até 5 dias úteis a partir do recebimento deste e-mail**, " +
     "responder a esta mensagem com fotos dos equipamentos encontrados, nas quais o número de patrimônio esteja visível.",
   "",
   "2. Caso algum equipamento não seja localizado nesse prazo, a direção deve registrar um boletim de ocorrência pela Delegacia Online:",
   URL_DELEGACIA_ONLINE,
-  "A cópia do BO deve ser enviada em resposta a este e-mail em até 5 dias úteis após o fim do prazo de busca.",
+  "**A cópia do BO deve ser enviada em resposta a este e-mail em até 5 dias úteis após o fim do prazo de busca.**",
 ];
 
-export function textoEmailRelatorio(r: RetratoVisita, codigo: string, nomeRemetente: string): string {
+function linhasEmailRelatorio(r: RetratoVisita, codigo: string, nomeRemetente: string): string[] {
   const naoLocalizados = itensComStatus(r, "nao_localizado");
   const lista = (titulo: string, tipo: ItemPendencia["tipo"]) => {
     const itens = naoLocalizados.filter((i) => i.tipo === tipo);
@@ -153,7 +154,7 @@ export function textoEmailRelatorio(r: RetratoVisita, codigo: string, nomeRemete
     ...(naoLocalizados.length > 0
       ? [
           "",
-          "Os seguintes dispositivos não foram localizados durante a conferência:",
+          "**Os seguintes dispositivos não foram localizados durante a conferência:**",
           "",
           ...lista("Chromebooks", "Chromebook"),
           ...lista("Tablets", "Tablet"),
@@ -164,7 +165,23 @@ export function textoEmailRelatorio(r: RetratoVisita, codigo: string, nomeRemete
     "Atenciosamente,",
     nomeRemetente,
     "UTIN · Secretaria Municipal da Educação de Canoas",
-  ].join("\n");
+  ];
+}
+
+export function textoEmailRelatorio(r: RetratoVisita, codigo: string, nomeRemetente: string): string {
+  return linhasEmailRelatorio(r, codigo, nomeRemetente).join("\n").replaceAll("**", "");
+}
+
+const escaparHtml = (texto: string) =>
+  texto.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+
+export function htmlEmailRelatorio(r: RetratoVisita, codigo: string, nomeRemetente: string): string {
+  return linhasEmailRelatorio(r, codigo, nomeRemetente)
+    .map((linha) => {
+      if (linha === URL_DELEGACIA_ONLINE) return `<a href="${linha}">${linha}</a>`;
+      return escaparHtml(linha).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    })
+    .join("<br>\n");
 }
 
 export const TEXTO_DECLARACAO =
