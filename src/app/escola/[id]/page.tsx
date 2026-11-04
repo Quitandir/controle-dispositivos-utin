@@ -19,6 +19,7 @@ import ListaChromebooks from "../../components/ListaChromebooks";
 import ListaTablets from "../../components/ListaTablets";
 import ListaTelas, { type ItemTela } from "../../components/ListaTelas";
 import AbasDispositivos, { type Aba } from "../../components/AbasDispositivos";
+import { grupoDaEscola } from "@/lib/grupos-escolas";
 
 export const dynamic = "force-dynamic";
 // gerar o PDF e salvar no Drive pode levar alguns segundos em escolas grandes
@@ -203,8 +204,8 @@ export default async function PaginaEscola({
     <>
       <Header />
       <main className="mx-auto max-w-5xl px-4 py-8">
-        <Link href="/" className="text-sm font-semibold text-teal-deep hover:underline">
-          ← Todas as escolas
+        <Link href={`/?grupo=${grupoDaEscola(escola.categoria)}`} className="text-sm font-semibold text-teal-deep hover:underline">
+          ← Voltar
         </Link>
         <h1 className="mt-3 font-display text-2xl font-semibold text-teal-deep sm:text-4xl">
           {escola.nome}

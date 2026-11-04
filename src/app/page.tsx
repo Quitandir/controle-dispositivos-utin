@@ -3,6 +3,8 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db/index";
 import { escolas, chromebooks, tablets, telas } from "@/db/schema";
 import Header from "./components/Header";
+import { GRUPOS_ESCOLA, grupoDaEscola } from "@/lib/grupos-escolas";
+
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +22,14 @@ function Barra({ conferidos, total }: { conferidos: number; total: number }) {
   );
 }
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ grupo?: string }>;
+}) {
+  const { grupo } = await searchParams;
+  // endereço sem grupo, ou com um valor desconhecido, abre em EMEF
+  const grupoAtivo = GRUPOS_ESCOLA.find((g) => g.chave === grupo)?.chave ?? "emef";
   const [todasEscolas, statsChromebooks, statsTablets, statsTelas] = await Promise.all([
     db.select().from(escolas).orderBy(escolas.nome),
     db
@@ -57,6 +66,9 @@ export default async function Home() {
   const telasPorEscola = new Map(
     statsTelas.filter((s) => s.escolaId !== null).map((s) => [s.escolaId as number, s.total]),
   );
+  const escolasDoGrupo = todasEscolas.filter((e) => grupoDaEscola(e.categoria) === grupoAtivo);
+  const totalDoGrupo = (chave: string) =>
+    todasEscolas.filter((e) => grupoDaEscola(e.categoria) === chave).length;
 
   return (
     <>
@@ -68,9 +80,22 @@ export default async function Home() {
         <h1 className="mt-2 font-display text-3xl font-semibold text-teal-deep sm:text-4xl">
           Escolha a escola
         </h1>
+        <nav className="mt-6 inline-flex flex-wrap rounded-full border border-line bg-white p-1">
+          {GRUPOS_ESCOLA.map((g) => (
+            <Link
+              key={g.chave}
+              href={`/?grupo=${g.chave}`}
+              aria-current={g.chave === grupoAtivo ? "page" : undefined}
+              className={`flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ${g.chave === grupoAtivo ? "bg-teal text-white" : "text-ink-soft"
+                }`}
+            >
+              {g.rotulo} ({totalDoGrupo(g.chave)})
+            </Link>
+          ))}
+        </nav>
 
         <ul className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {todasEscolas.map((e) => {
+          {escolasDoGrupo.map((e) => {
             const cb = chromebooksPorEscola.get(e.id);
             const tb = tabletsPorEscola.get(e.id);
             const tl = telasPorEscola.get(e.id);
