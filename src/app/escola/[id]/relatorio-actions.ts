@@ -13,6 +13,8 @@ import { gerarPdfRelatorio } from "@/lib/relatorio-pdf";
 import { formatarData } from "@/lib/telas";
 import { exigirUsuario, type UsuarioSessao } from "@/lib/usuario";
 
+const EMAIL_TIME = "time.google@canoasedu.rs.gov.br";
+
 // Como nas actions de telas: devolve o erro em vez de lançar, porque em produção
 // o Next esconde a mensagem das exceções.
 export type ResultadoRelatorio = { ok: true } | { ok: false; erro: string };
@@ -149,6 +151,7 @@ export async function enviarRelatorioParaEscola(visitaId: number): Promise<Resul
       remetente: email,
       para: emailEscola,
       cc: email,
+      cco: EMAIL_TIME,
       assunto: `Relatório de conferência de dispositivos — ${r.escola.nome} — ${codigo}`,
       texto,
       anexo: { nome: nomeArquivoRelatorio(r.escola.nome, codigo), conteudo: pdf },
