@@ -8,6 +8,9 @@ export const escolas = pgTable("escolas", {
   orgUnitPath: text("org_unit_path").unique(), // agora opcional
   email: text("email"), // e-mail institucional da escola (destino do relatório)
   diretorNome: text("diretor_nome"), // lembrado do último relatório, para pré-preencher o próximo
+  observacoes: text("observacoes"), // anotações da visita; entram no relatório ao gerar
+  observacoesAtualizadasEm: timestamp("observacoes_atualizadas_em", { withTimezone: true }),
+  observacoesAtualizadasPor: text("observacoes_atualizadas_por"),
 });
 
 export const chromebooks = pgTable("chromebooks", {

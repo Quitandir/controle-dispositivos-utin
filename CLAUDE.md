@@ -64,6 +64,7 @@ controle-dispositivos/
         │   ├── ListaTablets.tsx        (lista + busca + aviso de IMEI duplicado)
         │   ├── ListaTelas.tsx          (telas da escola: última vistoria, histórico, edições)
         │   ├── FormularioVistoriaTela.tsx (formulário de vistoria — registrar e editar)
+        │   ├── ObservacoesVisita.tsx   (aba "Observações": texto da visita que entra no relatório)
         │   ├── AbasDispositivos.tsx    (abas genéricas da página da escola)
         │   └── PainelRelatorio.tsx     (gerar relatório, abrir no Drive, enviar à escola)
         ├── entrar/page.tsx         (tela de login customizada)
@@ -80,7 +81,7 @@ controle-dispositivos/
 
 ```typescript
 escolas: id, nome (unique), categoria ('EMEF'|'EMEI'|'CEIA'|'Administrativo'), orgUnitPath (unique, nullable),
-         email, diretorNome
+         email, diretorNome, observacoes, observacoesAtualizadasEm, observacoesAtualizadasPor
 
 chromebooks: id, googleDeviceId (unique), escolaId, assetId, serialNumber, model, notes,
              orgUnitPath, googleStatus, status ('localizado'|'nao_localizado'|'recolhido'),
@@ -180,6 +181,8 @@ SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN   (só no build da Vercel: envio d
 3. ~~Filtro dropdown por status~~ — feito em 04/11/2026 nas listas de tablets e de Chromebooks (`FiltroStatus.tsx`, `passaNoFiltro`). Com filtro ativo, o item some da lista ao mudar de status, de propósito: a lista encolhe conforme a conferência avança.
 4. ~~Dividir a home por categoria~~ — feito em 04/11/2026: abas EMEF, EMEI e "Outras Instituições" (CEIA + Administrativo). A aba fica no endereço (`/?grupo=emei`), para sobreviver à ida e volta de uma escola; o link de voltar da escola aponta para o grupo dela (`grupos-escolas.ts`).
 5. **Dois tablets na mesma escola** (adiado em 22/10): não há atualização em tempo real, e o `SeletorStatus` guarda o status no `useState` e ignora o valor novo vindo do servidor — o contador do topo atualiza, mas a lista fica desatualizada até recarregar. Proposta: (1) sincronizar o seletor com a prop quando ela mudar; (2) `router.refresh()` a cada ~30s e ao voltar o foco para o app. Última gravação vence; o histórico registra tudo.
+
+6. **Observações da visita** (pedido do time em campo, 09/11/2026) — implementado na `dev` (`ObservacoesVisita.tsx`, `salvarObservacoesEscola`); colunas já aplicadas no banco `dev`; **falta aplicar as colunas na produção antes do merge**. Nova aba "Observações" na escola, com **uma caixa de texto por escola**, salva no botão **Salvar** e editável quantas vezes for preciso durante a conferência. Limite de 2000 caracteres. Ao gerar o relatório, o texto entra no retrato congelado: no PDF, numa seção antes da declaração e das assinaturas; no e-mail, num bloco depois das orientações. Se estiver vazio, não aparece. Editar depois de gerar mostra um aviso e exige nova versão. O texto **continua salvo na escola** para os próximos relatórios do ano, sem botão de limpar. Se duas pessoas editarem ao mesmo tempo, o segundo salvamento é recusado e mostra o texto da outra pessoa. Por trás: colunas `observacoes`, `observacoes_atualizadas_em` e `observacoes_atualizadas_por` em `escolas`; `observacoes` opcional no `RetratoVisita`, porque os relatórios antigos não têm o campo.
 
 ### Demais pendências
 

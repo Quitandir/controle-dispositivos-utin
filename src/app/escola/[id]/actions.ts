@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db/index";
 import {
@@ -13,6 +13,7 @@ import {
   telaVistorias,
   telaVistoriaHistorico,
 } from "@/db/schema";
+import { LIMITE_OBSERVACOES } from "@/lib/relatorio";
 import { statusValido, statusValidoTablet } from "@/lib/status";
 import { validarVistoria, type DadosVistoria } from "@/lib/telas";
 import { exigirUsuario, type UsuarioSessao } from "@/lib/usuario";
@@ -363,4 +364,82 @@ export async function editarVistoriaTela(
 
   if (resultado.ok) revalidatePath("/escola/[id]", "page");
   return resultado;
+}
+
+// ---------------------------------------------------------------------------
+// Observações da visita (uma caixa de texto por escola)
+// ---------------------------------------------------------------------------
+
+const fmtDataHora = new Intl.DateTimeFormat("pt-BR", {
+  dateStyle: "short",
+  timeStyle: "short",
+  timeZone: "America/Sao_Paulo",
+});
+
+export type VersaoObservacoes = { texto: string; em: string; emFmt: string; por: string };
+
+export type ResultadoObservacoes =
+  | { ok: true; salvo: VersaoObservacoes }
+  | { ok: false; erro: string }
+  | { ok: false; conflito: VersaoObservacoes }; // outra pessoa salvou antes: não sobrescrever
+
+// `versaoLida` é a data (ISO) do último salvamento que a tela conhecia. Se outra pessoa salvou
+// depois disso, recusa e devolve o texto dela, para quem está editando juntar os dois.
+export async function salvarObservacoesEscola(
+  escolaId: number,
+  textoBruto: string,
+  versaoLida: string | null,
+): Promise<ResultadoObservacoes> {
+  let usuario: UsuarioSessao;
+  try {
+    usuario = await exigirUsuario();
+  } catch (e) {
+    return { ok: false, erro: mensagem(e) };
+  }
+
+  const texto = textoBruto.trim();
+  if (texto.length > LIMITE_OBSERVACOES) {
+    return { ok: false, erro: `O texto passa do limite de ${LIMITE_OBSERVACOES} caracteres` };
+  }
+
+  // data gerada aqui (milissegundos), e não pelo banco (microssegundos), para a comparação
+  // com a versaoLida, que vem de um Date do JavaScript, bater exatamente
+  const agora = new Date();
+  const [gravado] = await db
+    .update(escolas)
+    .set({ observacoes: texto || null, observacoesAtualizadasEm: agora, observacoesAtualizadasPor: usuario.email })
+    .where(
+      and(
+        eq(escolas.id, escolaId),
+        sql`${escolas.observacoesAtualizadasEm} is not distinct from ${versaoLida}::timestamptz`,
+      ),
+    )
+    .returning({ id: escolas.id });
+
+  if (!gravado) {
+    const [atual] = await db
+      .select({
+        texto: escolas.observacoes,
+        em: escolas.observacoesAtualizadasEm,
+        por: escolas.observacoesAtualizadasPor,
+      })
+      .from(escolas)
+      .where(eq(escolas.id, escolaId));
+    if (!atual?.em) return { ok: false, erro: "Não foi possível salvar. Recarregue a página e tente de novo." };
+    return {
+      ok: false,
+      conflito: {
+        texto: atual.texto ?? "",
+        em: atual.em.toISOString(),
+        emFmt: fmtDataHora.format(atual.em),
+        por: atual.por ?? "",
+      },
+    };
+  }
+
+  revalidatePath("/escola/[id]", "page");
+  return {
+    ok: true,
+    salvo: { texto, em: agora.toISOString(), emFmt: fmtDataHora.format(agora), por: usuario.email },
+  };
 }

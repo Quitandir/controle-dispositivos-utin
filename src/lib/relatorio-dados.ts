@@ -76,5 +76,6 @@ export async function montarRetrato(escolaId: number): Promise<RetratoVisita> {
         },
       ];
     }),
+    observacoes: escola.observacoes,
   };
 }

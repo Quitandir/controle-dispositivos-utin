@@ -26,7 +26,10 @@ export type RetratoVisita = {
     atualizada: string;
     emailInstalado: string;
   }[];
+  observacoes?: string | null; // ausente nos relatórios gerados antes de 11/2026
 };
+
+export const LIMITE_OBSERVACOES = 2000;
 
 // Dados da visita que o PDF precisa além do retrato.
 export type CabecalhoRelatorio = {
@@ -159,6 +162,14 @@ function linhasEmailRelatorio(r: RetratoVisita, codigo: string, nomeRemetente: s
           ...lista("Chromebooks", "Chromebook"),
           ...lista("Tablets", "Tablet"),
           ...ORIENTACOES_EMAIL_NAO_LOCALIZADOS,
+        ]
+      : []),
+    ...(r.observacoes
+      ? [
+          "",
+          "**Observações da visita:**",
+          // ** no texto digitado viraria negrito no HTML
+          ...r.observacoes.replaceAll("**", "*").split(/\r?\n/),
         ]
       : []),
     "",

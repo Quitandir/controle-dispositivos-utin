@@ -19,6 +19,7 @@ import ListaChromebooks from "../../components/ListaChromebooks";
 import ListaTablets from "../../components/ListaTablets";
 import ListaTelas, { type ItemTela } from "../../components/ListaTelas";
 import AbasDispositivos, { type Aba } from "../../components/AbasDispositivos";
+import ObservacoesVisita from "../../components/ObservacoesVisita";
 import { grupoDaEscola } from "@/lib/grupos-escolas";
 
 export const dynamic = "force-dynamic";
@@ -197,6 +198,36 @@ export default async function PaginaEscola({
       chave: "telas",
       rotulo: "Telas interativas",
       conteudo: <ListaTelas escolaId={escolaId} itens={itensTelas} />,
+    });
+  }
+  if (abas.length > 0) {
+    const ultimaVisita = listaVisitas[0];
+    abas.push({
+      chave: "observacoes",
+      rotulo: "Observações",
+      conteudo: (
+        <ObservacoesVisita
+          escolaId={escolaId}
+          salvoInicial={
+            escola.observacoesAtualizadasEm
+              ? {
+                  texto: escola.observacoes ?? "",
+                  em: escola.observacoesAtualizadasEm.toISOString(),
+                  emFmt: fmt.format(escola.observacoesAtualizadasEm),
+                  por: escola.observacoesAtualizadasPor ?? "",
+                }
+              : null
+          }
+          ultimoRelatorio={
+            ultimaVisita
+              ? {
+                  codigo: codigoRelatorio(ultimaVisita.ano, ultimaVisita.numero, ultimaVisita.versao),
+                  geradoEm: ultimaVisita.geradoEm.toISOString(),
+                }
+              : null
+          }
+        />
+      ),
     });
   }
 

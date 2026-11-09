@@ -223,6 +223,13 @@ function RelatorioDocumento({ retrato: r, cab }: { retrato: RetratoVisita; cab: 
           </>
         )}
 
+        {r.observacoes && (
+          <>
+            <Text style={s.secao}>Observações</Text>
+            <Text>{r.observacoes}</Text>
+          </>
+        )}
+
         <View wrap={false}>
           <Text style={[s.paragrafo, { marginTop: 20 }]}>{TEXTO_DECLARACAO}</Text>
           <View style={s.assinaturas}>
