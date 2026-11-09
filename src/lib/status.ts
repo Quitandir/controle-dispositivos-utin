@@ -10,7 +10,8 @@ export function passaNoFiltro(status: string | null, filtro: string) {
 export const STATUS_OPCOES = [
   { valor: "localizado", rotulo: "Localizado" },
   { valor: "nao_localizado", rotulo: "Não localizado" },
-  { valor: "recolhido", rotulo: "Recolhido" },
+  // Chromebook recolhido fica com a UTIN esperando a escola comprar a tela para o reparo
+  { valor: "recolhido", rotulo: "Aguardando tela" },
 ] as const;
 
 export type StatusValor = (typeof STATUS_OPCOES)[number]["valor"];

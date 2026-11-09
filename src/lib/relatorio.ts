@@ -1,5 +1,5 @@
 // Tipos e funções puras do relatório de visita (sem acesso a banco).
-import { STATUS_OPCOES_TABLET } from "./status";
+import { STATUS_OPCOES, STATUS_OPCOES_TABLET } from "./status";
 import { formatarData } from "./telas";
 
 // Retrato congelado da conferência, gravado em visitas.retrato (jsonb).
@@ -49,8 +49,10 @@ export function nomeArquivoRelatorio(nomeEscola: string, codigo: string): string
   return `${nomeEscola.replace(/[\\/]/g, "-")} - ${codigo}.pdf`;
 }
 
-export function rotuloStatus(valor: string): string {
-  return STATUS_OPCOES_TABLET.find((o) => o.valor === valor)?.rotulo ?? valor;
+export function rotuloStatus(tipo: "chromebook" | "tablet", valor: string): string {
+  const opcoes: readonly { valor: string; rotulo: string }[] =
+    tipo === "chromebook" ? STATUS_OPCOES : STATUS_OPCOES_TABLET;
+  return opcoes.find((o) => o.valor === valor)?.rotulo ?? valor;
 }
 
 // Data de hoje no fuso de Brasília, AAAA-MM-DD.

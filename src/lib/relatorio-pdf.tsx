@@ -135,7 +135,7 @@ function RelatorioDocumento({ retrato: r, cab }: { retrato: RetratoVisita; cab: 
                 { titulo: "Patrimônio", largura: "20%", valor: (c) => c.patrimonio ?? "sem patrimônio" },
                 { titulo: "Nº de série", largura: "24%", valor: (c) => traco(c.serie) },
                 { titulo: "Modelo", largura: "30%", valor: (c) => traco(c.modelo) },
-                { titulo: "Status", largura: "20%", valor: (c) => rotuloStatus(c.status), destaque: (c) => c.status === "nao_localizado" },
+                { titulo: "Status", largura: "20%", valor: (c) => rotuloStatus("chromebook", c.status), destaque: (c) => c.status === "nao_localizado" },
               ]}
             />
           </>
@@ -150,7 +150,7 @@ function RelatorioDocumento({ retrato: r, cab }: { retrato: RetratoVisita; cab: 
                 { titulo: "#", largura: "6%", valor: (_, i) => String(i + 1) },
                 { titulo: "Patrimônio", largura: "30%", valor: (t) => t.patrimonio },
                 { titulo: "IMEI", largura: "40%", valor: (t) => traco(t.imei) },
-                { titulo: "Status", largura: "24%", valor: (t) => rotuloStatus(t.status), destaque: (t) => t.status === "nao_localizado" },
+                { titulo: "Status", largura: "24%", valor: (t) => rotuloStatus("tablet", t.status), destaque: (t) => t.status === "nao_localizado" },
               ]}
             />
           </>
