@@ -1,4 +1,5 @@
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { chromebookNaConferencia } from "@/db/filtros";
 import { db } from "@/db/index";
 import { chromebooks, escolas, tablets, telas, telaVistorias } from "@/db/schema";
 import { hojeBrasilia, type RetratoVisita } from "./relatorio";
@@ -9,7 +10,9 @@ export async function contarPendentes(escolaId: number) {
   const [c] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(chromebooks)
-    .where(sql`${chromebooks.escolaId} = ${escolaId} and ${chromebooks.status} is null`);
+    .where(
+      sql`${chromebooks.escolaId} = ${escolaId} and ${chromebooks.status} is null and ${chromebookNaConferencia()}`,
+    );
   const [t] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(tablets)
@@ -25,7 +28,7 @@ export async function montarRetrato(escolaId: number): Promise<RetratoVisita> {
     db
       .select()
       .from(chromebooks)
-      .where(eq(chromebooks.escolaId, escolaId))
+      .where(and(eq(chromebooks.escolaId, escolaId), chromebookNaConferencia()))
       .orderBy(asc(sql`coalesce(${chromebooks.assetId}, '')`), asc(chromebooks.serialNumber)),
     db.select().from(tablets).where(eq(tablets.escolaId, escolaId)).orderBy(asc(tablets.patrimonio)),
     db.select().from(telas).where(eq(telas.escolaId, escolaId)).orderBy(asc(telas.patrimonio)),

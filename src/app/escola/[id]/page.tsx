@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { chromebookNaConferencia } from "@/db/filtros";
 import { db } from "@/db/index";
 import {
   escolas,
@@ -127,7 +128,7 @@ export default async function PaginaEscola({
     db
       .select()
       .from(chromebooks)
-      .where(eq(chromebooks.escolaId, escolaId))
+      .where(and(eq(chromebooks.escolaId, escolaId), chromebookNaConferencia()))
       .orderBy(asc(sql`coalesce(${chromebooks.assetId}, '')`), asc(chromebooks.id)),
     db
       .select()

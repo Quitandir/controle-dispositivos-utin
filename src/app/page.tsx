@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { sql } from "drizzle-orm";
+import { chromebookNaConferencia } from "@/db/filtros";
 import { db } from "@/db/index";
 import { escolas, chromebooks, tablets, telas } from "@/db/schema";
 import Header from "./components/Header";
@@ -39,6 +40,7 @@ export default async function Home({
         conferidos: sql<number>`count(${chromebooks.status})`.mapWith(Number),
       })
       .from(chromebooks)
+      .where(chromebookNaConferencia())
       .groupBy(chromebooks.escolaId),
     db
       .select({
