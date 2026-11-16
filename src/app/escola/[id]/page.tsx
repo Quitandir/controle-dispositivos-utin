@@ -21,7 +21,8 @@ import ListaTablets from "../../components/ListaTablets";
 import ListaTelas, { type ItemTela } from "../../components/ListaTelas";
 import AbasDispositivos, { type Aba } from "../../components/AbasDispositivos";
 import ObservacoesVisita from "../../components/ObservacoesVisita";
-import { grupoDaEscola } from "@/lib/grupos-escolas";
+import { CATEGORIA_EXTRAVIADOS, grupoDaEscola } from "@/lib/grupos-escolas";
+import ListaExtraviados from "../../components/ListaExtraviados";
 
 export const dynamic = "force-dynamic";
 // gerar o PDF e salvar no Drive pode levar alguns segundos em escolas grandes
@@ -156,6 +157,41 @@ export default async function PaginaEscola({
       .orderBy(desc(visitas.geradoEm)),
   ]);
 
+  const linkVoltar = (
+    <Link href={`/?grupo=${grupoDaEscola(escola.categoria)}`} className="text-sm font-semibold text-teal-deep hover:underline">
+      ← Voltar
+    </Link>
+  );
+
+  // Card dos extraviados: só a lista, sem status, abas nem relatório
+  if (escola.categoria === CATEGORIA_EXTRAVIADOS) {
+    return (
+      <>
+        <Header />
+        <main className="mx-auto max-w-5xl px-4 py-8">
+          {linkVoltar}
+          <h1 className="mt-3 font-display text-2xl font-semibold text-teal-deep sm:text-4xl">{escola.nome}</h1>
+          <p className="mt-1 font-mono text-xs text-ink-soft">
+            {listaChromebooks.length} na UO de extraviados do Admin Console
+          </p>
+          <p className="mt-3 max-w-2xl text-sm text-ink-soft">
+            Busque o nome da escola visitada para ver os extraviados ligados a ela. Ao localizar um aparelho,
+            mova-o para a UO da escola no Admin Console: ele sai desta lista na sincronização seguinte.
+          </p>
+          <ListaExtraviados
+            itens={listaChromebooks.map((c) => ({
+              id: c.id,
+              assetId: c.assetId,
+              model: c.model,
+              notes: c.notes,
+              ultimoSync: c.ultimoSyncGoogle ? fmt.format(c.ultimoSyncGoogle) : null,
+            }))}
+          />
+        </main>
+      </>
+    );
+  }
+
   const imeisDuplicados = imeisDuplicadosRaw.rows.map((r) => r.imei);
 
   const conferidosChromebooks = listaChromebooks.filter((c) => c.status).length;
@@ -236,9 +272,7 @@ export default async function PaginaEscola({
     <>
       <Header />
       <main className="mx-auto max-w-5xl px-4 py-8">
-        <Link href={`/?grupo=${grupoDaEscola(escola.categoria)}`} className="text-sm font-semibold text-teal-deep hover:underline">
-          ← Voltar
-        </Link>
+        {linkVoltar}
         <h1 className="mt-3 font-display text-2xl font-semibold text-teal-deep sm:text-4xl">
           {escola.nome}
         </h1>

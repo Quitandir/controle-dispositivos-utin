@@ -4,7 +4,7 @@ import { chromebookNaConferencia } from "@/db/filtros";
 import { db } from "@/db/index";
 import { escolas, chromebooks, tablets, telas } from "@/db/schema";
 import Header from "./components/Header";
-import { GRUPOS_ESCOLA, grupoDaEscola } from "@/lib/grupos-escolas";
+import { CATEGORIA_EXTRAVIADOS, GRUPOS_ESCOLA, grupoDaEscola } from "@/lib/grupos-escolas";
 
 
 export const dynamic = "force-dynamic";
@@ -119,7 +119,13 @@ export default async function Home({
                   </div>
 
                   <div className="mt-auto flex flex-col gap-3">
-                    {cb && (
+                    {cb && e.categoria === CATEGORIA_EXTRAVIADOS && (
+                      <p className="font-mono text-xs text-ink-soft">
+                        <span className="uppercase tracking-widest">Chromebooks</span> · {cb.total}{" "}
+                        {cb.total === 1 ? "extraviado" : "extraviados"}
+                      </p>
+                    )}
+                    {cb && e.categoria !== CATEGORIA_EXTRAVIADOS && (
                       <div>
                         <p className="font-mono text-[0.65rem] uppercase tracking-widest text-ink-soft">
                           Chromebooks

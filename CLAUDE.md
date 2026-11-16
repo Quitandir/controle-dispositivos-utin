@@ -62,6 +62,7 @@ controle-dispositivos/
         │   ├── CampoObservacoes.tsx    (log de observações dos tablets, acumulativo)
         │   ├── ListaChromebooks.tsx    (lista + busca por patrimônio)
         │   ├── ListaTablets.tsx        (lista + busca + aviso de IMEI duplicado)
+        │   ├── ListaExtraviados.tsx    (card dos extraviados: só exibição, busca no patrimônio e nas anotações)
         │   ├── ListaTelas.tsx          (telas da escola: última vistoria, histórico, edições)
         │   ├── FormularioVistoriaTela.tsx (formulário de vistoria — registrar e editar)
         │   ├── ObservacoesVisita.tsx   (aba "Observações": texto da visita que entra no relatório)
@@ -80,7 +81,7 @@ controle-dispositivos/
 ## Schema (Drizzle, Postgres via Neon)
 
 ```typescript
-escolas: id, nome (unique), categoria ('EMEF'|'EMEI'|'CEIA'|'Administrativo'), orgUnitPath (unique, nullable),
+escolas: id, nome (unique), categoria ('EMEF'|'EMEI'|'CEIA'|'Administrativo'|'Extraviados'), orgUnitPath (unique, nullable),
          email, diretorNome, observacoes, observacoesAtualizadasEm, observacoesAtualizadasPor
 
 chromebooks: id, googleDeviceId (unique), escolaId, assetId, serialNumber, model, notes,
@@ -91,7 +92,7 @@ chromebooks: id, googleDeviceId (unique), escolaId, assetId, serialNumber, model
 statusHistorico: id, chromebookId, statusAnterior, statusNovo, alteradoPor, alteradoEm
 
 tablets: id, patrimonio (unique), imei, escolaId,
-         status ('localizado'|'nao_localizado'|'recolhido'|'baixado'),
+         status ('localizado'|'nao_localizado'|'recolhido'|'baixado'|'com_bo'),
          observacoes (texto acumulativo, tipo log), statusAtualizadoEm, statusAtualizadoPor
 
 tabletStatusHistorico: id, tabletId, statusAnterior, statusNovo, alteradoPor, alteradoEm
@@ -147,6 +148,8 @@ SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN   (só no build da Vercel: envio d
 - Chromebooks e tablets são **tabelas separadas**, cada uma com seu próprio histórico — decisão deliberada de não abstrair cedo demais numa tabela genérica de "dispositivos".
 - Sincronização de Chromebooks é **somente leitura**: nunca escreve de volta no Admin Console, e nunca sobrescreve `status`/`statusAtualizadoEm`/`statusAtualizadoPor` (esses só mudam pela ação do usuário na interface).
 - **Chromebooks desprovisionados ficam fora da conferência** (desde 12/11/2026): o sync continua gravando todos, com `googleStatus = 'DEPROVISIONED'`, mas a lista da escola, os contadores da home e da escola, a contagem de pendentes e o retrato do relatório filtram com `chromebookNaConferencia()` (`src/db/filtros.ts`). Isso vale mesmo para os que já tinham sido conferidos. O status de conferência não é apagado, e o aparelho volta sozinho se for reprovisionado. `DISABLED` (perda ou roubo) continua aparecendo. Em 12/11/2026, a produção tinha 14 desprovisionados ligados a escolas, 4 deles já conferidos. Ao consultar chromebooks por escola, use esse filtro.
+- **Card "Chromebooks extraviados"** (16/11/2026): é uma linha em `escolas` com a categoria `Extraviados`, ligada à UO `/Dispositivos/Extraviados`, e aparece em Outras Instituições. A página dele é **só de exibição**: mostra patrimônio, modelo, anotações do Console e última sincronização, sem status, abas, observações ou relatório. A busca procura no patrimônio e nas anotações, sem diferenciar acentos, para o time achar os extraviados da escola visitada. Quando um aparelho é localizado, o time o move para a UO da escola no Console, e ele sai do card na sincronização seguinte. A UO `/Extraviados 2.0` é de um teste e fica de fora. A UO `/Dispositivos/Inundados em maio de 2024` também fica fora do sistema.
+- **Status `com_bo` dos tablets**, rótulo "Dispositivo com Boletim de Ocorrência" (16/11/2026): o extravio já foi informado à polícia. Conta como conferido. No PDF, entra numa coluna "Com BO" do resumo e numa seção própria; no e-mail, numa lista própria, sem as orientações de busca.
 - Tablets não têm fonte de sincronização — os dados vêm só do import único da planilha. IMEI **não é único** no banco de propósito (existem duplicidades reais na planilha, por erro de digitação histórico); a interface sinaliza em vermelho, mas não bloqueia.
 - Observações de tablet são **acumulativas** (um log, com data e autor por entrada), nunca sobrescritas.
 - **Telas interativas não têm lista prévia** por escola: a tela é criada (e vinculada à escola) na primeira vistoria. Se o patrimônio já existir em outra escola, a interface pede confirmação e transfere a tela; as vistorias antigas continuam ligadas a ela. Aparecem em EMEF, EMEI e CEIA (não em Administrativo).

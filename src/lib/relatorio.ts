@@ -60,13 +60,13 @@ export function hojeBrasilia(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 }
 
-export const STATUS_RESUMO = ["localizado", "nao_localizado", "recolhido", "baixado"] as const;
+export const STATUS_RESUMO = ["localizado", "nao_localizado", "recolhido", "baixado", "com_bo"] as const;
 
 export type LinhaResumo = { tipo: string; total: number } & Record<(typeof STATUS_RESUMO)[number], number>;
 
 export function resumoPorStatus(r: RetratoVisita): LinhaResumo[] {
   const contar = (tipo: string, itens: { status: string }[]): LinhaResumo => {
-    const linha = { tipo, total: itens.length, localizado: 0, nao_localizado: 0, recolhido: 0, baixado: 0 };
+    const linha = { tipo, total: itens.length, localizado: 0, nao_localizado: 0, recolhido: 0, baixado: 0, com_bo: 0 };
     for (const i of itens) {
       if (i.status in linha) linha[i.status as (typeof STATUS_RESUMO)[number]]++;
     }
@@ -128,6 +128,9 @@ export const TEXTO_ORIENTACAO_NAO_LOCALIZADOS = {
     "\nA cópia do BO deve ser enviada em resposta ao mesmo e-mail, em até 5 dias úteis após o fim do prazo de busca.",
 };
 
+export const TEXTO_COM_BO =
+  "Os equipamentos relacionados acima já têm boletim de ocorrência registrado, informando o seu extravio.";
+
 // **assim** = negrito na versão HTML do e-mail
 const ORIENTACOES_EMAIL_NAO_LOCALIZADOS = [
   "Orientações:",
@@ -142,8 +145,10 @@ const ORIENTACOES_EMAIL_NAO_LOCALIZADOS = [
 
 function linhasEmailRelatorio(r: RetratoVisita, codigo: string, nomeRemetente: string): string[] {
   const naoLocalizados = itensComStatus(r, "nao_localizado");
-  const lista = (titulo: string, tipo: ItemPendencia["tipo"]) => {
-    const itens = naoLocalizados.filter((i) => i.tipo === tipo);
+  const comBo = itensComStatus(r, "com_bo");
+  // patrimônios agrupados por tipo, cada grupo seguido de uma linha em branco
+  const lista = (todos: ItemPendencia[], titulo: string, tipo: ItemPendencia["tipo"]) => {
+    const itens = todos.filter((i) => i.tipo === tipo);
     if (!itens.length) return [];
     return [
       `${titulo} (${itens.length}):`,
@@ -161,10 +166,19 @@ function linhasEmailRelatorio(r: RetratoVisita, codigo: string, nomeRemetente: s
           "",
           "**Os seguintes dispositivos não foram localizados durante a conferência:**",
           "",
-          ...lista("Chromebooks", "Chromebook"),
-          ...lista("Tablets", "Tablet"),
+          ...lista(naoLocalizados, "Chromebooks", "Chromebook"),
+          ...lista(naoLocalizados, "Tablets", "Tablet"),
           ...ORIENTACOES_EMAIL_NAO_LOCALIZADOS,
         ]
+      : []),
+    ...(comBo.length > 0
+      ? [
+          "",
+          "**Os seguintes dispositivos já têm boletim de ocorrência registrado, informando o seu extravio:**",
+          "",
+          ...lista(comBo, "Chromebooks", "Chromebook"),
+          ...lista(comBo, "Tablets", "Tablet"),
+        ].slice(0, -1) // sem a linha em branco do último grupo
       : []),
     ...(r.observacoes
       ? [

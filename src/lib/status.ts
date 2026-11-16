@@ -25,6 +25,8 @@ export const STATUS_OPCOES_TABLET = [
   { valor: "nao_localizado", rotulo: "Não localizado" },
   { valor: "recolhido", rotulo: "Recolhido" },
   { valor: "baixado", rotulo: "Baixado" },
+  // extravio já informado à polícia: entra no relatório e no e-mail para a direção saber
+  { valor: "com_bo", rotulo: "Dispositivo com Boletim de Ocorrência" },
 ] as const;
 
 export type StatusValorTablet = (typeof STATUS_OPCOES_TABLET)[number]["valor"];

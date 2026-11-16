@@ -14,6 +14,7 @@ const COR: Record<string, string> = {
   nao_localizado: "border-terracotta bg-terracotta/10 text-terracotta",
   recolhido: "border-amber bg-amber/20 text-ink",
   baixado: "border-ink-soft bg-ink-soft/10 text-ink-soft",
+  com_bo: "border-ink bg-ink/10 text-ink",
   "": "border-line bg-white text-ink-soft",
 };
 

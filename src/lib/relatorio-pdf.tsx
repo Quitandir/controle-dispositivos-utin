@@ -1,6 +1,7 @@
 import { Document, Font, Link, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { rotuloOpcao, formatarData, type CampoOpcao } from "./telas";
 import {
+  TEXTO_COM_BO,
   TEXTO_DECLARACAO,
   TEXTO_ORIENTACAO_NAO_LOCALIZADOS,
   URL_DELEGACIA_ONLINE,
@@ -90,6 +91,7 @@ function RelatorioDocumento({ retrato: r, cab }: { retrato: RetratoVisita; cab: 
   const resumo = resumoPorStatus(r);
   const naoLocalizados = itensComStatus(r, "nao_localizado");
   const recolhidos = itensComStatus(r, "recolhido");
+  const comBo = itensComStatus(r, "com_bo");
   const telasFuncionando = r.telas.filter((t) => t.funcionando === "sim").length;
 
   const colunasPendencia: Coluna<ItemPendencia>[] = [
@@ -183,12 +185,13 @@ function RelatorioDocumento({ retrato: r, cab }: { retrato: RetratoVisita; cab: 
             <Tabela
               itens={resumo}
               colunas={[
-                { titulo: "Dispositivo", largura: "25%", valor: (l) => l.tipo },
-                { titulo: "Total", largura: "11%", valor: (l) => String(l.total) },
-                { titulo: "Localizados", largura: "16%", valor: (l) => String(l.localizado) },
-                { titulo: "Não localizados", largura: "18%", valor: (l) => String(l.nao_localizado), destaque: (l) => l.nao_localizado > 0 },
-                { titulo: "Recolhidos", largura: "15%", valor: (l) => String(l.recolhido) },
-                { titulo: "Baixados", largura: "15%", valor: (l) => (l.tipo === "Tablets" ? String(l.baixado) : "—") },
+                { titulo: "Dispositivo", largura: "20%", valor: (l) => l.tipo },
+                { titulo: "Total", largura: "9%", valor: (l) => String(l.total) },
+                { titulo: "Localizados", largura: "14%", valor: (l) => String(l.localizado) },
+                { titulo: "Não localizados", largura: "17%", valor: (l) => String(l.nao_localizado), destaque: (l) => l.nao_localizado > 0 },
+                { titulo: "Recolhidos", largura: "14%", valor: (l) => String(l.recolhido) },
+                { titulo: "Baixados", largura: "12%", valor: (l) => (l.tipo === "Tablets" ? String(l.baixado) : "—") },
+                { titulo: "Com BO", largura: "14%", valor: (l) => (l.tipo === "Tablets" ? String(l.com_bo) : "—") },
               ]}
             />
           )}
@@ -220,6 +223,14 @@ function RelatorioDocumento({ retrato: r, cab }: { retrato: RetratoVisita; cab: 
           <>
             <Text style={s.secao}>Dispositivos recolhidos pela UTIN ({recolhidos.length})</Text>
             <Tabela itens={recolhidos} colunas={colunasPendencia.slice(0, 4).map((c) => (c.titulo === "Modelo" ? { ...c, largura: "50%" } : c))} />
+          </>
+        )}
+
+        {comBo.length > 0 && (
+          <>
+            <Text style={s.secao}>Dispositivos com boletim de ocorrência ({comBo.length})</Text>
+            <Tabela itens={comBo} colunas={colunasPendencia.slice(0, 4).map((c) => (c.titulo === "Modelo" ? { ...c, largura: "50%" } : c))} />
+            <Text style={s.paragrafo}>{TEXTO_COM_BO}</Text>
           </>
         )}
 
