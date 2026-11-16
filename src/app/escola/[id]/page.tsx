@@ -125,7 +125,7 @@ export default async function PaginaEscola({
 
   const temTelas = CATEGORIAS_COM_TELAS.includes(escola.categoria ?? "");
 
-  const [listaChromebooks, listaTablets, imeisDuplicadosRaw, itensTelas, listaVisitas] = await Promise.all([
+  const [listaChromebooks, listaTablets, imeisDuplicadosRaw, itensTelas, listaVisitas, todasEscolas] = await Promise.all([
     db
       .select()
       .from(chromebooks)
@@ -155,6 +155,12 @@ export default async function PaginaEscola({
       .from(visitas)
       .where(eq(visitas.escolaId, escolaId))
       .orderBy(desc(visitas.geradoEm)),
+    // destinos possíveis de uma transferência de tablet
+    db
+      .select({ id: escolas.id, nome: escolas.nome, categoria: escolas.categoria })
+      .from(escolas)
+      .where(sql`${escolas.categoria} is distinct from ${CATEGORIA_EXTRAVIADOS}`)
+      .orderBy(asc(escolas.nome)),
   ]);
 
   const linkVoltar = (
@@ -223,13 +229,19 @@ export default async function PaginaEscola({
       conteudo: <ListaChromebooks itens={itensChromebooks} />,
     });
   }
-  if (listaTablets.length > 0) {
-    abas.push({
-      chave: "tablets",
-      rotulo: "Tablets",
-      conteudo: <ListaTablets itens={itensTablets} imeisDuplicados={imeisDuplicados} />,
-    });
-  }
+  // sempre aparece, mesmo sem tablets: é por ela que a escola recebe um tablet transferido
+  abas.push({
+    chave: "tablets",
+    rotulo: "Tablets",
+    conteudo: (
+      <ListaTablets
+        escolaId={escolaId}
+        itens={itensTablets}
+        imeisDuplicados={imeisDuplicados}
+        escolasDestino={todasEscolas.map((e) => ({ id: e.id, nome: e.nome, grupo: grupoDaEscola(e.categoria) }))}
+      />
+    ),
+  });
   if (temTelas) {
     abas.push({
       chave: "telas",
@@ -237,7 +249,8 @@ export default async function PaginaEscola({
       conteudo: <ListaTelas escolaId={escolaId} itens={itensTelas} />,
     });
   }
-  if (abas.length > 0) {
+  // só onde há o que conferir (a aba Tablets agora existe em toda escola, mesmo vazia)
+  if (listaChromebooks.length > 0 || listaTablets.length > 0 || temTelas) {
     const ultimaVisita = listaVisitas[0];
     abas.push({
       chave: "observacoes",

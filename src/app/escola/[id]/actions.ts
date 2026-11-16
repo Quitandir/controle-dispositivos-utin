@@ -13,6 +13,7 @@ import {
   telaVistorias,
   telaVistoriaHistorico,
 } from "@/db/schema";
+import { CATEGORIA_EXTRAVIADOS } from "@/lib/grupos-escolas";
 import { LIMITE_OBSERVACOES } from "@/lib/relatorio";
 import { statusValido, statusValidoTablet } from "@/lib/status";
 import { validarVistoria, type DadosVistoria } from "@/lib/telas";
@@ -170,17 +171,117 @@ export async function adicionarObservacaoTablet(tabletId: number, texto: string)
     .where(eq(tablets.id, tabletId));
   if (!atual) throw new Error("Tablet não encontrado");
 
-  const novaEntrada = `[${fmtLog.format(new Date())} — ${email}] ${textoLimpo}`;
-  const observacoesAtualizadas = atual.observacoes
-    ? `${atual.observacoes}\n${novaEntrada}`
-    : novaEntrada;
-
   await db
     .update(tablets)
-    .set({ observacoes: observacoesAtualizadas })
+    .set({ observacoes: acrescentarEntrada(atual.observacoes, email, textoLimpo) })
     .where(eq(tablets.id, tabletId));
 
   revalidatePath("/escola/[id]", "page");
+}
+
+// Uma linha nova no log de observações do tablet, no formato "[data, hora — e-mail] texto".
+// O script de reset reconhece esse formato para separar o que veio do app.
+function acrescentarEntrada(log: string | null, email: string, texto: string) {
+  const entrada = `[${fmtLog.format(new Date())} — ${email}] ${texto}`;
+  return log ? `${log}\n${entrada}` : entrada;
+}
+
+// ---------------------------------------------------------------------------
+// Transferência de tablets entre escolas
+// ---------------------------------------------------------------------------
+// Só muda a escola: o status e o histórico de status ficam como estão. A transferência fica
+// registrada no log de observações do tablet.
+
+export type TabletEncontrado = {
+  id: number;
+  patrimonio: string;
+  status: string | null;
+  escolaId: number | null;
+  escolaNome: string | null;
+};
+
+export type ResultadoBuscaTablet = { ok: true; tablet: TabletEncontrado } | { ok: false; erro: string };
+export type ResultadoTransferencia = { ok: true } | { ok: false; erro: string };
+
+// "Receber tablet de outra escola": acha o tablet pelo patrimônio para a pessoa confirmar.
+export async function buscarTabletParaReceber(
+  escolaDestinoId: number,
+  patrimonioBruto: string,
+): Promise<ResultadoBuscaTablet> {
+  try {
+    await exigirUsuario();
+  } catch (e) {
+    return { ok: false, erro: mensagem(e) };
+  }
+
+  const patrimonio = patrimonioBruto.trim();
+  if (!patrimonio) return { ok: false, erro: "Informe o número do patrimônio" };
+
+  const [t] = await db
+    .select({
+      id: tablets.id,
+      patrimonio: tablets.patrimonio,
+      status: tablets.status,
+      escolaId: tablets.escolaId,
+      escolaNome: escolas.nome,
+    })
+    .from(tablets)
+    .leftJoin(escolas, eq(escolas.id, tablets.escolaId))
+    .where(eq(tablets.patrimonio, patrimonio));
+
+  if (!t) return { ok: false, erro: `Nenhum tablet com o patrimônio ${patrimonio}.` };
+  if (t.escolaId === escolaDestinoId) return { ok: false, erro: `O tablet ${patrimonio} já é desta escola.` };
+  return { ok: true, tablet: t };
+}
+
+// escolaOrigemEsperada: a escola que a pessoa viu na tela ao confirmar. Se o tablet tiver mudado
+// de escola nesse meio-tempo (outra pessoa transferiu), a transferência é recusada.
+export async function transferirTablet(
+  tabletId: number,
+  escolaDestinoId: number,
+  escolaOrigemEsperada: number | null,
+): Promise<ResultadoTransferencia> {
+  let usuario: UsuarioSessao;
+  try {
+    usuario = await exigirUsuario();
+  } catch (e) {
+    return { ok: false, erro: mensagem(e) };
+  }
+
+  const resultado = await db.transaction(async (tx): Promise<ResultadoTransferencia> => {
+    const [atual] = await tx
+      .select({ escolaId: tablets.escolaId, observacoes: tablets.observacoes, escolaNome: escolas.nome })
+      .from(tablets)
+      .leftJoin(escolas, eq(escolas.id, tablets.escolaId))
+      .where(eq(tablets.id, tabletId))
+      .for("update", { of: tablets });
+    if (!atual) return { ok: false, erro: "Tablet não encontrado" };
+    if (atual.escolaId !== escolaOrigemEsperada) {
+      return { ok: false, erro: "Este tablet mudou de escola enquanto isso. Recarregue a página e confira." };
+    }
+    if (atual.escolaId === escolaDestinoId) return { ok: false, erro: "O tablet já está nesta escola." };
+
+    const [destino] = await tx
+      .select({ nome: escolas.nome, categoria: escolas.categoria })
+      .from(escolas)
+      .where(eq(escolas.id, escolaDestinoId));
+    if (!destino || destino.categoria === CATEGORIA_EXTRAVIADOS) {
+      return { ok: false, erro: "Escola de destino inválida" };
+    }
+
+    const registro = `Transferido de ${atual.escolaNome ?? "sem escola"} para ${destino.nome}`;
+    await tx
+      .update(tablets)
+      .set({ escolaId: escolaDestinoId, observacoes: acrescentarEntrada(atual.observacoes, usuario.email, registro) })
+      .where(eq(tablets.id, tabletId));
+    return { ok: true };
+  });
+
+  if (resultado.ok) {
+    revalidatePath("/escola/[id]", "page");
+    revalidatePath("/");
+  }
+  return resultado;
 }
 
 // ---------------------------------------------------------------------------

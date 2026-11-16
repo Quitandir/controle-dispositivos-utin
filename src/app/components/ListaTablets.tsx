@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import FiltroStatus from "./FiltroStatus";
 import SeletorStatus from "./SeletorStatus";
 import CampoObservacoes from "./CampoObservacoes";
+import ReceberTablet from "./ReceberTablet";
+import TransferirTablet, { type EscolaDestino } from "./TransferirTablet";
 import { FILTRO_TODOS, passaNoFiltro, STATUS_OPCOES_TABLET } from "@/lib/status";
 
 export type ItemTablet = {
@@ -16,11 +18,15 @@ export type ItemTablet = {
 };
 
 export default function ListaTablets({
+  escolaId,
   itens,
   imeisDuplicados,
+  escolasDestino,
 }: {
+  escolaId: number;
   itens: ItemTablet[];
   imeisDuplicados: string[];
+  escolasDestino: EscolaDestino[];
 }) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState(FILTRO_TODOS);
@@ -34,7 +40,8 @@ export default function ListaTablets({
 
   return (
     <>
-      <div className="sticky top-0 z-10 -mx-4 mt-6 bg-paper px-4 py-3">
+      <ReceberTablet escolaId={escolaId} />
+      <div className="sticky top-0 z-10 -mx-4 mt-3 bg-paper px-4 py-3">
         <div className="flex flex-col gap-2 md:flex-row md:gap-5">
           <input
             type="search"
@@ -84,7 +91,15 @@ export default function ListaTablets({
                   <p className="mt-0.5 text-xs text-terracotta">IMEI repetido em outro tablet</p>
                 )}
               </div>
-              <SeletorStatus tipo="tablet" id={t.id} statusInicial={t.status} />
+              <div className="flex flex-col gap-2">
+                <SeletorStatus tipo="tablet" id={t.id} statusInicial={t.status} />
+                <TransferirTablet
+                  tabletId={t.id}
+                  patrimonio={t.patrimonio}
+                  escolaAtualId={escolaId}
+                  escolas={escolasDestino}
+                />
+              </div>
               <CampoObservacoes tabletId={t.id} historico={t.observacoes} />
               <div className="font-mono text-xs text-ink-soft">{t.atualizadoEm ?? "—"}</div>
             </li>
