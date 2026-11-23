@@ -29,7 +29,7 @@ const MAPA_ESCOLA: Record<string, string | null> = {
   "EMEF ERNA WURTH": "EMEF Erna Würth",
   "EMEF Erna Wurth": "EMEF Erna Würth",
   "EMEF Farroupilha": "EMEF Farroupilha",
-  "EMEF General Antônio de Souza Netto": "EMEF General Antônio de Souza Neto",
+  "EMEF General Antônio de Souza Netto": "EMEF General Antônio de Souza Netto",
   "EMEF General Osório": "EMEF General Osório",
   "EMEF Gonçalves Dias": "EMEF Gonçalves Dias",
   "EMEF Governador Leonel de Moura Brizola": "EMEF Governador Leonel de Moura Brizola",

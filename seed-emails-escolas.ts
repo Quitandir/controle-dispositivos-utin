@@ -26,7 +26,7 @@ const EMAILS: [number, string, string][] = [
   [13, "EMEF Engenheiro Ildo Meneghetti", "emef_ildomeneghetti"],
   [14, "EMEF Erna Würth", "emef_ernawurth"],
   [15, "EMEF Farroupilha", "emef_farroupilha"],
-  [16, "EMEF General Antônio de Souza Neto", "emef_generalneto"],
+  [16, "EMEF General Antônio de Souza Netto", "emef_generalneto"],
   [17, "EMEF General Osório", "emef_osorio"],
   [18, "EMEF Gonçalves Dias", "emef_goncalvesdias"],
   [19, "EMEF Governador Leonel de Moura Brizola", "emef_leonelbrizola"],

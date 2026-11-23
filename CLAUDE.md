@@ -175,6 +175,7 @@ SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN   (só no build da Vercel: envio d
 - **`drizzle-kit push` via CLI local precisa do driver `pg`**, não do `@neondatabase/serverless` — a rede institucional bloqueia o handshake WebSocket que o driver serverless usa. O app em runtime na Vercel também usa `pg` (connection pooled), por consistência.
 - **Vercel: se o Framework Preset não for detectado como Next.js**, o deploy fica "Ready" mas toda rota retorna 404 de plataforma, com zero log de runtime — confira `Settings → General → Framework Preset` antes de suspeitar de bug da plataforma.
 - **Ordem de deploy com mudança de schema**: rode `npx drizzle-kit push` **antes** de dar push no código — todo push na `main` dispara deploy na Vercel, e a home quebra se consultar uma tabela que ainda não existe.
+- **Nome da escola ≠ UO**: o sync liga cada Chromebook pela `org_unit_path`, nunca pelo nome. Corrigir o nome é seguro; mudar a UO exige trocar `org_unit_path` no mesmo dia em que a UO for renomeada no Admin Console, senão os aparelhos saem da escola na sincronização seguinte. Ex.: em 23/11/2026 o nome da escola id 16 virou "EMEF General Antônio de Souza **Netto**", mas a UO continua `.../Souza Neto`.
 - **CEIA**: a tabela `escolas` guarda o nome completo (`CEIA Nordeste - Centro de Educação Inclusiva e Acessibilidade`), não a forma curta — já corrigido, mas vale lembrar se aparecer alguma fonte de dado nova usando o nome curto.
 
 ## Pendências / próximos passos possíveis

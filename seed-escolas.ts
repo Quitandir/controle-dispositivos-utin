@@ -21,6 +21,7 @@ const NOMES_ESCOLAS = [
   "EMEF Engenheiro Ildo Meneghetti",
   "EMEF Erna Würth",
   "EMEF Farroupilha",
+  // em 23/11/2026 o nome no banco foi corrigido para "Netto"; a UO do Admin Console continua "Neto"
   "EMEF General Antônio de Souza Neto",
   "EMEF General Osório",
   "EMEF Gonçalves Dias",
