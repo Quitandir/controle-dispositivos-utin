@@ -5,6 +5,7 @@ import FiltroStatus from "./FiltroStatus";
 import SeletorStatus from "./SeletorStatus";
 import CampoObservacoes from "./CampoObservacoes";
 import ReceberTablet from "./ReceberTablet";
+import AvisoFoco from "./AvisoFoco";
 import PainelTransferencia, { BotaoTransferir, type EscolaDestino } from "./TransferirTablet";
 
 // Colunas da lista: 4 em telas médias (status e observações juntos), 6 em telas grandes
@@ -26,37 +27,54 @@ export default function ListaTablets({
   itens,
   imeisDuplicados,
   escolasDestino,
+  focoInicial = null,
 }: {
   escolaId: number;
   itens: ItemTablet[];
   imeisDuplicados: string[];
   escolasDestino: EscolaDestino[];
+  focoInicial?: number | null; // id vindo da busca da home: a lista abre só com ele
 }) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState(FILTRO_TODOS);
+  const [foco, setFoco] = useState(focoInicial);
   const [transferindo, setTransferindo] = useState<number | null>(null); // tablet com o painel aberto
   const termo = busca.trim().toLowerCase();
   const duplicados = useMemo(() => new Set(imeisDuplicados), [imeisDuplicados]);
 
   const filtrados = useMemo(
-    () => itens.filter((i) => i.patrimonio.toLowerCase().includes(termo) && passaNoFiltro(i.status, filtro)),
-    [itens, termo, filtro],
+    () =>
+      foco !== null
+        ? itens.filter((i) => i.id === foco)
+        : itens.filter((i) => i.patrimonio.toLowerCase().includes(termo) && passaNoFiltro(i.status, filtro)),
+    [itens, termo, filtro, foco],
   );
 
   return (
     <>
+      {foco !== null && <AvisoFoco aoLimpar={() => setFoco(null)} />}
       <ReceberTablet escolaId={escolaId} />
       <div className="sticky top-0 z-10 -mx-4 mt-3 bg-paper px-4 py-3">
         <div className="flex flex-col gap-2 md:flex-row md:gap-5">
           <input
             type="search"
             value={busca}
-            onChange={(e) => setBusca(e.target.value)}
+            onChange={(e) => {
+              setFoco(null);
+              setBusca(e.target.value);
+            }}
             placeholder="Buscar por patrimônio"
             aria-label="Buscar por patrimônio"
             className="min-h-12 w-full rounded-xl border-2 border-line bg-white px-4 text-base outline-none focus:border-teal md:max-w-sm"
           />
-          <FiltroStatus valor={filtro} opcoes={STATUS_OPCOES_TABLET} aoMudar={setFiltro} />
+          <FiltroStatus
+            valor={filtro}
+            opcoes={STATUS_OPCOES_TABLET}
+            aoMudar={(v) => {
+              setFoco(null);
+              setFiltro(v);
+            }}
+          />
         </div>
         {(termo || filtro !== FILTRO_TODOS) && (
           <p className="mt-2 font-mono text-xs text-ink-soft">

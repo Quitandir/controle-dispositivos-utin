@@ -5,6 +5,7 @@ import { db } from "@/db/index";
 import { escolas, chromebooks, tablets, telas } from "@/db/schema";
 import Header from "./components/Header";
 import FiltroConferencia from "./components/FiltroConferencia";
+import BuscaDispositivo from "./components/BuscaDispositivo";
 import { CATEGORIA_EXTRAVIADOS, GRUPOS_ESCOLA, grupoDaEscola } from "@/lib/grupos-escolas";
 import {
   COR_CONFERENCIA,
@@ -112,6 +113,9 @@ export default async function Home({
         <h1 className="mt-2 font-display text-3xl font-semibold text-teal-deep sm:text-4xl">
           Escolha a escola
         </h1>
+        <div className="mt-6">
+          <BuscaDispositivo />
+        </div>
         <nav className="mt-6 inline-flex flex-wrap rounded-full border border-line bg-white p-1">
           {GRUPOS_ESCOLA.map((g) => (
             <Link

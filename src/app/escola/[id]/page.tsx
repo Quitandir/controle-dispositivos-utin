@@ -116,10 +116,16 @@ async function carregarTelas(escolaId: number): Promise<ItemTela[]> {
 
 export default async function PaginaEscola({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ aba?: string; foco?: string }>;
 }) {
   const { id } = await params;
+  // vindo da busca da home: abre nesta aba, mostrando só este dispositivo
+  const { aba, foco } = await searchParams;
+  const focoId = foco && /^\d+$/.test(foco) ? Number(foco) : null;
+  const focoNa = (chave: string) => (aba === chave ? focoId : null);
   const escolaId = Number(id);
   if (!Number.isInteger(escolaId)) notFound();
 
@@ -197,6 +203,7 @@ export default async function PaginaEscola({
           </p>
           {botaoConsole}
           <ListaExtraviados
+            focoInicial={focoNa("chromebooks")}
             itens={listaChromebooks.map((c) => ({
               id: c.id,
               assetId: c.assetId,
@@ -239,7 +246,7 @@ export default async function PaginaEscola({
     abas.push({
       chave: "chromebooks",
       rotulo: "Chromebooks",
-      conteudo: <ListaChromebooks itens={itensChromebooks} />,
+      conteudo: <ListaChromebooks itens={itensChromebooks} focoInicial={focoNa("chromebooks")} />,
     });
   }
   // sempre aparece, mesmo sem tablets: é por ela que a escola recebe um tablet transferido
@@ -251,6 +258,7 @@ export default async function PaginaEscola({
         escolaId={escolaId}
         itens={itensTablets}
         imeisDuplicados={imeisDuplicados}
+        focoInicial={focoNa("tablets")}
         escolasDestino={todasEscolas.map((e) => ({ id: e.id, nome: e.nome, grupo: grupoDaEscola(e.categoria) }))}
       />
     ),
@@ -259,7 +267,7 @@ export default async function PaginaEscola({
     abas.push({
       chave: "telas",
       rotulo: "Telas interativas",
-      conteudo: <ListaTelas escolaId={escolaId} itens={itensTelas} />,
+      conteudo: <ListaTelas escolaId={escolaId} itens={itensTelas} focoInicial={focoNa("telas")} />,
     });
   }
   // só onde há o que conferir (a aba Tablets agora existe em toda escola, mesmo vazia)
@@ -352,7 +360,7 @@ export default async function PaginaEscola({
           />
         )}
 
-        <AbasDispositivos abas={abas} />
+        <AbasDispositivos abas={abas} inicial={aba} />
       </main>
     </>
   );

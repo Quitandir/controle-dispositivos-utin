@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import FormularioVistoriaTela, { type ModoFormulario } from "./FormularioVistoriaTela";
+import AvisoFoco from "./AvisoFoco";
 import {
   OPCOES_VISTORIA,
   PERGUNTAS,
@@ -72,15 +73,29 @@ function paraFormulario(marca: string, v: ItemVistoria): DadosVistoria {
 
 type Aberto = { onde: "topo" | number; modo: ModoFormulario; valores?: Partial<DadosVistoria> };
 
-export default function ListaTelas({ escolaId, itens }: { escolaId: number; itens: ItemTela[] }) {
+export default function ListaTelas({
+  escolaId,
+  itens,
+  focoInicial = null,
+}: {
+  escolaId: number;
+  itens: ItemTela[];
+  focoInicial?: number | null; // id vindo da busca da home: a lista abre só com ela
+}) {
   const [busca, setBusca] = useState("");
+  const [foco, setFoco] = useState(focoInicial);
   const [aberto, setAberto] = useState<Aberto | null>(null);
   const [historicoAberto, setHistoricoAberto] = useState<Set<number>>(new Set());
   const termo = busca.trim().toLowerCase();
 
   const filtrados = useMemo(
-    () => (termo ? itens.filter((i) => i.patrimonio.toLowerCase().includes(termo)) : itens),
-    [itens, termo],
+    () =>
+      foco !== null
+        ? itens.filter((i) => i.id === foco)
+        : termo
+          ? itens.filter((i) => i.patrimonio.toLowerCase().includes(termo))
+          : itens,
+    [itens, termo, foco],
   );
 
   function alternarHistorico(id: number) {
@@ -106,12 +121,16 @@ export default function ListaTelas({ escolaId, itens }: { escolaId: number; iten
 
   return (
     <>
+      {foco !== null && <AvisoFoco aoLimpar={() => setFoco(null)} />}
       <div className="sticky top-0 z-10 -mx-4 mt-6 flex flex-col gap-3 bg-paper px-4 py-3 sm:flex-row sm:items-start">
         <div className="flex-1">
           <input
             type="search"
             value={busca}
-            onChange={(e) => setBusca(e.target.value)}
+            onChange={(e) => {
+              setFoco(null);
+              setBusca(e.target.value);
+            }}
             placeholder="Buscar por patrimônio"
             aria-label="Buscar por patrimônio"
             className="min-h-12 w-full rounded-xl border-2 border-line bg-white px-4 text-base outline-none focus:border-teal md:max-w-sm"

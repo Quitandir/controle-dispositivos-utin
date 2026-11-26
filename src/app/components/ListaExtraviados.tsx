@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import AvisoFoco from "./AvisoFoco";
 
 export type ItemExtraviado = {
   id: number;
@@ -17,22 +18,36 @@ const normalizar = (texto: string) => texto.normalize("NFD").replace(/\p{Diacrit
 
 // Só exibição: a busca procura no patrimônio e nas anotações do Admin Console, onde fica a
 // escola de origem do aparelho.
-export default function ListaExtraviados({ itens }: { itens: ItemExtraviado[] }) {
+export default function ListaExtraviados({
+  itens,
+  focoInicial = null,
+}: {
+  itens: ItemExtraviado[];
+  focoInicial?: number | null; // id vindo da busca da home: a lista abre só com ele
+}) {
   const [busca, setBusca] = useState("");
+  const [foco, setFoco] = useState(focoInicial);
   const termo = normalizar(busca.trim());
 
   const filtrados = useMemo(
-    () => itens.filter((i) => normalizar(`${i.assetId ?? ""} ${i.notes ?? ""}`).includes(termo)),
-    [itens, termo],
+    () =>
+      foco !== null
+        ? itens.filter((i) => i.id === foco)
+        : itens.filter((i) => normalizar(`${i.assetId ?? ""} ${i.notes ?? ""}`).includes(termo)),
+    [itens, termo, foco],
   );
 
   return (
     <>
+      {foco !== null && <AvisoFoco aoLimpar={() => setFoco(null)} />}
       <div className="sticky top-0 z-10 -mx-4 mt-6 bg-paper px-4 py-3">
         <input
           type="search"
           value={busca}
-          onChange={(e) => setBusca(e.target.value)}
+          onChange={(e) => {
+            setFoco(null);
+            setBusca(e.target.value);
+          }}
           placeholder="Buscar por patrimônio ou escola nas observações"
           aria-label="Buscar por patrimônio ou observação"
           className="min-h-12 w-full rounded-xl border-2 border-line bg-white px-4 text-base outline-none focus:border-teal md:max-w-md"

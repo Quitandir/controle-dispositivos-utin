@@ -4,8 +4,9 @@ import { useState, type ReactNode } from "react";
 
 export type Aba = { chave: string; rotulo: string; conteudo: ReactNode };
 
-export default function AbasDispositivos({ abas }: { abas: Aba[] }) {
-  const [ativa, setAtiva] = useState(abas[0]?.chave);
+// `inicial`: aba pedida no endereço (?aba=tablets, vindo da busca da home); se não existir, abre a primeira
+export default function AbasDispositivos({ abas, inicial }: { abas: Aba[]; inicial?: string }) {
+  const [ativa, setAtiva] = useState(abas.some((a) => a.chave === inicial) ? inicial : abas[0]?.chave);
 
   if (abas.length === 0) {
     return <p className="mt-8 text-ink-soft">Nenhum dispositivo registrado nesta unidade.</p>;
