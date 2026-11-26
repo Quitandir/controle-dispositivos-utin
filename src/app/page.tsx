@@ -127,7 +127,7 @@ export default async function Home({
             >
               {g.rotulo} ({totalDoGrupo(g.chave)})
               {comStatus(g.chave).length > 0 && (
-                <span className="ml-1.5 font-mono text-xs font-normal opacity-80">
+                <span className="ml-1.5 hidden font-mono text-xs font-normal opacity-80 lg:inline">
                   · {finalizadasDoGrupo(g.chave)}/{comStatus(g.chave).length} finalizadas
                 </span>
               )}

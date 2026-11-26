@@ -198,10 +198,10 @@ export default async function PaginaEscola({
           </p>
           <p className="mt-3 max-w-2xl text-sm text-ink-soft">
             Busque o nome da escola visitada para ver os extraviados ligados a ela. Ao localizar um aparelho,
-            mova-o para a UO da escola no Admin Console e clique em “Atualizar do Console” na página da
-            escola: ele passa para a lista dela e sai desta.
+            mova-o para a UO da escola no Admin Console e clique no botão de atualizar do Console (⟳) na
+            página da escola: ele passa para a lista dela e sai desta.
           </p>
-          {botaoConsole}
+          {botaoConsole && <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1">{botaoConsole}</div>}
           <ListaExtraviados
             focoInicial={focoNa("chromebooks")}
             itens={listaChromebooks.map((c) => ({
@@ -271,7 +271,8 @@ export default async function PaginaEscola({
     });
   }
   // só onde há o que conferir (a aba Tablets agora existe em toda escola, mesmo vazia)
-  if (listaChromebooks.length > 0 || listaTablets.length > 0 || temTelas) {
+  const temOQueConferir = listaChromebooks.length > 0 || listaTablets.length > 0 || temTelas;
+  if (temOQueConferir) {
     const ultimaVisita = listaVisitas[0];
     abas.push({
       chave: "observacoes",
@@ -297,6 +298,31 @@ export default async function PaginaEscola({
                 }
               : null
           }
+        />
+      ),
+    });
+  }
+  // última aba: contador de pendentes, gerar relatório, abrir no Drive e enviar à escola
+  // (mesma regra de antes: só com algum dispositivo; ou se já houver relatório, para não escondê-lo)
+  if (listaChromebooks.length > 0 || listaTablets.length > 0 || itensTelas.length > 0 || listaVisitas.length > 0) {
+    abas.push({
+      chave: "relatorios",
+      rotulo: "Relatórios",
+      conteudo: (
+        <PainelRelatorio
+          escolaId={escolaId}
+          pendentesChromebooks={listaChromebooks.length - conferidosChromebooks}
+          pendentesTablets={listaTablets.length - conferidosTablets}
+          diretorNomeInicial={escola.diretorNome ?? ""}
+          emailEscola={escola.email}
+          visitas={listaVisitas.map((v) => ({
+            id: v.id,
+            codigo: codigoRelatorio(v.ano, v.numero, v.versao),
+            geradoEm: fmt.format(v.geradoEm),
+            geradoPor: v.geradoPor,
+            driveUrl: v.driveUrl,
+            enviado: v.enviadoEm ? `${fmt.format(v.enviadoEm)} por ${v.enviadoPor}` : null,
+          }))}
         />
       ),
     });
@@ -328,7 +354,8 @@ export default async function PaginaEscola({
           )}
         </div>
 
-        {temStatusConferencia(escola.categoria) && (
+        {/* status da conferência com o botão do Console ao lado; sem status (CEIA, setores), só o botão */}
+        {temStatusConferencia(escola.categoria) ? (
           <SeletorConferencia
             escolaId={escolaId}
             valorInicial={escola.statusConferencia}
@@ -338,26 +365,10 @@ export default async function PaginaEscola({
                 : null
             }
             podeFinalizar={listaVisitas.some((v) => v.ano === anoAtual && v.enviadoEm)}
+            acao={botaoConsole}
           />
-        )}
-        {botaoConsole}
-
-        {(listaChromebooks.length > 0 || listaTablets.length > 0 || itensTelas.length > 0) && (
-          <PainelRelatorio
-            escolaId={escolaId}
-            pendentesChromebooks={listaChromebooks.length - conferidosChromebooks}
-            pendentesTablets={listaTablets.length - conferidosTablets}
-            diretorNomeInicial={escola.diretorNome ?? ""}
-            emailEscola={escola.email}
-            visitas={listaVisitas.map((v) => ({
-              id: v.id,
-              codigo: codigoRelatorio(v.ano, v.numero, v.versao),
-              geradoEm: fmt.format(v.geradoEm),
-              geradoPor: v.geradoPor,
-              driveUrl: v.driveUrl,
-              enviado: v.enviadoEm ? `${fmt.format(v.enviadoEm)} por ${v.enviadoPor}` : null,
-            }))}
-          />
+        ) : (
+          botaoConsole && <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1">{botaoConsole}</div>
         )}
 
         <AbasDispositivos abas={abas} inicial={aba} />
