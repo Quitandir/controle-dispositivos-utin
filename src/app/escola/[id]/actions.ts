@@ -1,6 +1,7 @@
 "use server";
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import * as Sentry from "@sentry/nextjs";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db/index";
 import {
@@ -12,10 +13,17 @@ import {
   telas,
   telaVistorias,
   telaVistoriaHistorico,
+  visitas,
 } from "@/db/schema";
 import { CATEGORIA_EXTRAVIADOS } from "@/lib/grupos-escolas";
-import { LIMITE_OBSERVACOES } from "@/lib/relatorio";
+import {
+  statusConferenciaValido,
+  temStatusConferencia,
+  type StatusConferencia,
+} from "@/lib/conferencia";
+import { hojeBrasilia, LIMITE_OBSERVACOES } from "@/lib/relatorio";
 import { statusValido, statusValidoTablet } from "@/lib/status";
+import { sincronizarUO } from "@/lib/sync-chromebooks";
 import { validarVistoria, type DadosVistoria } from "@/lib/telas";
 import { exigirUsuario, type UsuarioSessao } from "@/lib/usuario";
 
@@ -543,4 +551,79 @@ export async function salvarObservacoesEscola(
     ok: true,
     salvo: { texto, em: agora.toISOString(), emFmt: fmtDataHora.format(agora), por: usuario.email },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Atualizar do Console (sincroniza só a UO da escola)
+// ---------------------------------------------------------------------------
+
+export type ResultadoConsole =
+  | { ok: true; naUO: number; entraram: number; sairam: number; excluidosDoConsole: number; emFmt: string }
+  | { ok: false; erro: string };
+
+export async function atualizarDoConsole(escolaId: number): Promise<ResultadoConsole> {
+  try {
+    await exigirUsuario();
+  } catch (e) {
+    return { ok: false, erro: mensagem(e) };
+  }
+
+  try {
+    const r = await sincronizarUO(escolaId);
+    revalidatePath("/escola/[id]", "page");
+    revalidatePath("/");
+    return { ok: true, ...r, emFmt: fmtDataHora.format(new Date()) };
+  } catch (e) {
+    Sentry.captureException(e, { extra: { escolaId } });
+    return { ok: false, erro: "Não foi possível ler o Admin Console agora. Tente de novo em instantes." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Status da conferência da escola (manual)
+// ---------------------------------------------------------------------------
+
+export type ResultadoConferencia =
+  | { ok: true; valor: StatusConferencia; emFmt: string; por: string }
+  | { ok: false; erro: string };
+
+export async function alterarStatusConferencia(escolaId: number, valor: string): Promise<ResultadoConferencia> {
+  let usuario: UsuarioSessao;
+  try {
+    usuario = await exigirUsuario();
+  } catch (e) {
+    return { ok: false, erro: mensagem(e) };
+  }
+  if (!statusConferenciaValido(valor)) return { ok: false, erro: "Status inválido" };
+
+  const [escola] = await db
+    .select({ categoria: escolas.categoria })
+    .from(escolas)
+    .where(eq(escolas.id, escolaId));
+  if (!escola || !temStatusConferencia(escola.categoria)) {
+    return { ok: false, erro: "Esta unidade não tem status de conferência" };
+  }
+
+  // Finalizado = a escola já respondeu sobre os não localizados, o que pressupõe o relatório enviado
+  if (valor === "finalizado") {
+    const ano = Number(hojeBrasilia().slice(0, 4));
+    const [enviado] = await db
+      .select({ id: visitas.id })
+      .from(visitas)
+      .where(and(eq(visitas.escolaId, escolaId), eq(visitas.ano, ano), isNotNull(visitas.enviadoEm)))
+      .limit(1);
+    if (!enviado) {
+      return { ok: false, erro: "Só é possível finalizar depois de enviar o relatório deste ano à escola." };
+    }
+  }
+
+  const agora = new Date();
+  await db
+    .update(escolas)
+    .set({ statusConferencia: valor, statusConferenciaEm: agora, statusConferenciaPor: usuario.email })
+    .where(eq(escolas.id, escolaId));
+
+  revalidatePath("/escola/[id]", "page");
+  revalidatePath("/");
+  return { ok: true, valor, emFmt: fmtDataHora.format(agora), por: usuario.email };
 }

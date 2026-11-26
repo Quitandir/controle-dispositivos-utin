@@ -4,7 +4,18 @@ import { chromebookNaConferencia } from "@/db/filtros";
 import { db } from "@/db/index";
 import { escolas, chromebooks, tablets, telas } from "@/db/schema";
 import Header from "./components/Header";
+import FiltroConferencia from "./components/FiltroConferencia";
 import { CATEGORIA_EXTRAVIADOS, GRUPOS_ESCOLA, grupoDaEscola } from "@/lib/grupos-escolas";
+import {
+  COR_CONFERENCIA,
+  FILTRO_CONFERENCIA_TODAS,
+  STATUS_CONFERENCIA,
+  rotuloConferencia,
+  statusConferenciaDe,
+  statusConferenciaValido,
+  temStatusConferencia,
+  type StatusConferencia,
+} from "@/lib/conferencia";
 
 
 export const dynamic = "force-dynamic";
@@ -26,11 +37,13 @@ function Barra({ conferidos, total }: { conferidos: number; total: number }) {
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ grupo?: string }>;
+  searchParams: Promise<{ grupo?: string; conferencia?: string }>;
 }) {
-  const { grupo } = await searchParams;
+  const { grupo, conferencia } = await searchParams;
   // endereço sem grupo, ou com um valor desconhecido, abre em EMEF
   const grupoAtivo = GRUPOS_ESCOLA.find((g) => g.chave === grupo)?.chave ?? "emef";
+  const filtroConferencia =
+    conferencia && statusConferenciaValido(conferencia) ? conferencia : FILTRO_CONFERENCIA_TODAS;
   const [todasEscolas, statsChromebooks, statsTablets, statsTelas] = await Promise.all([
     db.select().from(escolas).orderBy(escolas.nome),
     db
@@ -68,9 +81,26 @@ export default async function Home({
   const telasPorEscola = new Map(
     statsTelas.filter((s) => s.escolaId !== null).map((s) => [s.escolaId as number, s.total]),
   );
-  const escolasDoGrupo = todasEscolas.filter((e) => grupoDaEscola(e.categoria) === grupoAtivo);
-  const totalDoGrupo = (chave: string) =>
-    todasEscolas.filter((e) => grupoDaEscola(e.categoria) === chave).length;
+  const doGrupo = (chave: string) => todasEscolas.filter((e) => grupoDaEscola(e.categoria) === chave);
+  const totalDoGrupo = (chave: string) => doGrupo(chave).length;
+
+  // status da conferência: só nas escolas (EMEF e EMEI)
+  const comStatus = (chave: string) => doGrupo(chave).filter((e) => temStatusConferencia(e.categoria));
+  const finalizadasDoGrupo = (chave: string) =>
+    comStatus(chave).filter((e) => statusConferenciaDe(e.statusConferencia) === "finalizado").length;
+  const contagemConferencia = Object.fromEntries(
+    STATUS_CONFERENCIA.map((o) => [
+      o.valor,
+      comStatus(grupoAtivo).filter((e) => statusConferenciaDe(e.statusConferencia) === o.valor).length,
+    ]),
+  ) as Record<StatusConferencia, number>;
+  const grupoTemStatus = comStatus(grupoAtivo).length > 0;
+
+  const escolasDoGrupo = doGrupo(grupoAtivo).filter(
+    (e) =>
+      filtroConferencia === FILTRO_CONFERENCIA_TODAS ||
+      (temStatusConferencia(e.categoria) && statusConferenciaDe(e.statusConferencia) === filtroConferencia),
+  );
 
   return (
     <>
@@ -92,20 +122,43 @@ export default async function Home({
                 }`}
             >
               {g.rotulo} ({totalDoGrupo(g.chave)})
+              {comStatus(g.chave).length > 0 && (
+                <span className="ml-1.5 font-mono text-xs font-normal opacity-80">
+                  · {finalizadasDoGrupo(g.chave)}/{comStatus(g.chave).length} finalizadas
+                </span>
+              )}
             </Link>
           ))}
         </nav>
+
+        {grupoTemStatus && (
+          <div className="mt-4">
+            <FiltroConferencia
+              grupo={grupoAtivo}
+              valor={filtroConferencia}
+              contagem={contagemConferencia}
+              total={comStatus(grupoAtivo).length}
+            />
+          </div>
+        )}
+
+        {escolasDoGrupo.length === 0 && (
+          <p className="mt-8 text-ink-soft">Nenhuma escola com esse status da conferência.</p>
+        )}
 
         <ul className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {escolasDoGrupo.map((e) => {
             const cb = chromebooksPorEscola.get(e.id);
             const tb = tabletsPorEscola.get(e.id);
             const tl = telasPorEscola.get(e.id);
+            const statusConf = temStatusConferencia(e.categoria) ? statusConferenciaDe(e.statusConferencia) : null;
             return (
               <li key={e.id}>
                 <Link
                   href={`/escola/${e.id}`}
-                  className="flex h-full flex-col gap-3 rounded-2xl border border-line bg-white p-5 transition hover:-translate-y-0.5 hover:shadow-md"
+                  className={`flex h-full flex-col gap-3 rounded-2xl border p-5 transition hover:-translate-y-0.5 hover:shadow-md ${
+                    statusConf ? COR_CONFERENCIA[statusConf].card : "border-line bg-white"
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <h2 className="font-display text-lg font-semibold leading-snug text-teal-deep">
@@ -117,6 +170,13 @@ export default async function Home({
                       </span>
                     )}
                   </div>
+                  {statusConf && (
+                    <span
+                      className={`self-start rounded-full px-2.5 py-0.5 text-xs font-semibold ${COR_CONFERENCIA[statusConf].etiqueta}`}
+                    >
+                      {rotuloConferencia(statusConf)}
+                    </span>
+                  )}
 
                   <div className="mt-auto flex flex-col gap-3">
                     {cb && e.categoria === CATEGORIA_EXTRAVIADOS && (

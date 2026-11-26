@@ -87,7 +87,9 @@ function ultimoContato(i: ItemPendencia): string {
 
 const traco = (v: string | null) => v || "—";
 
-function RelatorioDocumento({ retrato: r, cab }: { retrato: RetratoVisita; cab: CabecalhoRelatorio }) {
+// As páginas do relatório de uma escola. Sem `cab` (unidade sem relatório gerado, no compilado
+// do fim do ano), vira "situação da conferência": sem código, orientações nem assinaturas.
+export function PaginaRelatorio({ retrato: r, cab }: { retrato: RetratoVisita; cab: CabecalhoRelatorio | null }) {
   const resumo = resumoPorStatus(r);
   const naoLocalizados = itensComStatus(r, "nao_localizado");
   const recolhidos = itensComStatus(r, "recolhido");
@@ -103,29 +105,39 @@ function RelatorioDocumento({ retrato: r, cab }: { retrato: RetratoVisita; cab: 
   ];
 
   return (
-    <Document title={`${cab.codigo} — ${r.escola.nome}`} author="UTIN · SME Canoas" language="pt-BR">
-      <Page size="A4" style={s.pagina}>
+    <Page size="A4" style={s.pagina}>
         <Text style={s.orgao}>Secretaria Municipal da Educação de Canoas · UTIN</Text>
-        <Text style={s.titulo}>Relatório de conferência de dispositivos</Text>
+        <Text style={s.titulo}>
+          {cab ? "Relatório de conferência de dispositivos" : "Situação da conferência de dispositivos"}
+        </Text>
         <Text style={s.escola}>{r.escola.nome}</Text>
-        <View style={s.meta}>
-          <View style={s.metaItem}>
-            <Text style={s.metaRotulo}>Relatório</Text>
-            <Text style={s.metaValor}>{cab.codigo}</Text>
+        {cab ? (
+          <View style={s.meta}>
+            <View style={s.metaItem}>
+              <Text style={s.metaRotulo}>Relatório</Text>
+              <Text style={s.metaValor}>{cab.codigo}</Text>
+            </View>
+            <View style={s.metaItem}>
+              <Text style={s.metaRotulo}>Data da visita</Text>
+              <Text style={s.metaValor}>{formatarData(r.dataVisita)}</Text>
+            </View>
+            <View style={s.metaItem}>
+              <Text style={s.metaRotulo}>Responsável UTIN</Text>
+              <Text style={s.metaValor}>{cab.responsavelNome}</Text>
+            </View>
+            <View style={s.metaItem}>
+              <Text style={s.metaRotulo}>Direção</Text>
+              <Text style={s.metaValor}>{cab.diretorNome}</Text>
+            </View>
           </View>
-          <View style={s.metaItem}>
-            <Text style={s.metaRotulo}>Data da visita</Text>
-            <Text style={s.metaValor}>{formatarData(r.dataVisita)}</Text>
+        ) : (
+          <View style={s.meta}>
+            <Text style={s.vazio}>
+              Nenhum relatório de visita foi gerado para esta unidade no ano. Dados do sistema em{" "}
+              {formatarData(r.dataVisita)}.
+            </Text>
           </View>
-          <View style={s.metaItem}>
-            <Text style={s.metaRotulo}>Responsável UTIN</Text>
-            <Text style={s.metaValor}>{cab.responsavelNome}</Text>
-          </View>
-          <View style={s.metaItem}>
-            <Text style={s.metaRotulo}>Direção</Text>
-            <Text style={s.metaValor}>{cab.diretorNome}</Text>
-          </View>
-        </View>
+        )}
 
         {r.chromebooks.length > 0 && (
           <>
@@ -207,16 +219,20 @@ function RelatorioDocumento({ retrato: r, cab }: { retrato: RetratoVisita; cab: 
         {naoLocalizados.length > 0 ? (
           <>
             <Tabela itens={naoLocalizados} colunas={colunasPendencia} />
-            <Text style={s.paragrafo}>
-              {TEXTO_ORIENTACAO_NAO_LOCALIZADOS.antesDoLink}
-              <Link src={URL_DELEGACIA_ONLINE} style={{ color: COR.teal }}>
-                {URL_DELEGACIA_ONLINE}
-              </Link>
-              {TEXTO_ORIENTACAO_NAO_LOCALIZADOS.depoisDoLink}
-            </Text>
+            {cab && (
+              <Text style={s.paragrafo}>
+                {TEXTO_ORIENTACAO_NAO_LOCALIZADOS.antesDoLink}
+                <Link src={URL_DELEGACIA_ONLINE} style={{ color: COR.teal }}>
+                  {URL_DELEGACIA_ONLINE}
+                </Link>
+                {TEXTO_ORIENTACAO_NAO_LOCALIZADOS.depoisDoLink}
+              </Text>
+            )}
           </>
         ) : (
-          <Text style={s.vazio}>Todos os dispositivos foram localizados.</Text>
+          <Text style={s.vazio}>
+            {cab ? "Todos os dispositivos foram localizados." : "Nenhum dispositivo marcado como não localizado."}
+          </Text>
         )}
 
         {recolhidos.length > 0 && (
@@ -241,31 +257,132 @@ function RelatorioDocumento({ retrato: r, cab }: { retrato: RetratoVisita; cab: 
           </>
         )}
 
-        <View wrap={false}>
-          <Text style={[s.paragrafo, { marginTop: 20 }]}>{TEXTO_DECLARACAO}</Text>
-          <View style={s.assinaturas}>
-            <View style={s.assinatura}>
-              <Text style={s.metaValor}>{cab.diretorNome}</Text>
-              <Text style={s.metaRotulo}>Direção da escola</Text>
-            </View>
-            <View style={s.assinatura}>
-              <Text style={s.metaValor}>{cab.responsavelNome}</Text>
-              <Text style={s.metaRotulo}>Responsável UTIN · {cab.responsavelEmail}</Text>
+        {cab && (
+          <View wrap={false}>
+            <Text style={[s.paragrafo, { marginTop: 20 }]}>{TEXTO_DECLARACAO}</Text>
+            <View style={s.assinaturas}>
+              <View style={s.assinatura}>
+                <Text style={s.metaValor}>{cab.diretorNome}</Text>
+                <Text style={s.metaRotulo}>Direção da escola</Text>
+              </View>
+              <View style={s.assinatura}>
+                <Text style={s.metaValor}>{cab.responsavelNome}</Text>
+                <Text style={s.metaRotulo}>Responsável UTIN · {cab.responsavelEmail}</Text>
+              </View>
             </View>
           </View>
-        </View>
+        )}
 
         <View style={s.rodape} fixed>
           <Text>
-            {cab.codigo} · {r.escola.nome}
+            {cab?.codigo ?? "Sem relatório"} · {r.escola.nome}
           </Text>
           <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
         </View>
-      </Page>
-    </Document>
+    </Page>
   );
 }
 
 export function gerarPdfRelatorio(retrato: RetratoVisita, cab: CabecalhoRelatorio): Promise<Buffer> {
-  return renderToBuffer(<RelatorioDocumento retrato={retrato} cab={cab} />);
+  return renderToBuffer(
+    <Document title={`${cab.codigo} — ${retrato.escola.nome}`} author="UTIN · SME Canoas" language="pt-BR">
+      <PaginaRelatorio retrato={retrato} cab={cab} />
+    </Document>,
+  );
+}
+
+// Unidade sem relatório no ano (compilado do fim do ano): situação atual, sem assinaturas.
+export function gerarPdfSituacao(retrato: RetratoVisita): Promise<Buffer> {
+  return renderToBuffer(
+    <Document title={`Situação — ${retrato.escola.nome}`} author="UTIN · SME Canoas" language="pt-BR">
+      <PaginaRelatorio retrato={retrato} cab={null} />
+    </Document>,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Capa do compilado do fim do ano: um índice com a situação de cada unidade
+// ---------------------------------------------------------------------------
+
+export type LinhaCompilado = {
+  unidade: string;
+  categoria: string;
+  conferencia: string; // status da conferência da escola, ou "—"
+  relatorio: string; // código, "Sem relatório" ou "Sem dispositivos"
+  enviado: string; // data de envio, ou "—"
+  chromebooks: number;
+  tablets: number;
+  naoLocalizados: number;
+  comBo: number;
+  fonte: string; // de onde vieram as páginas desta unidade no compilado
+};
+
+export function gerarPdfCapaCompilado(ano: number, geradoEm: string, linhas: LinhaCompilado[]): Promise<Buffer> {
+  const soma = (campo: "chromebooks" | "tablets" | "naoLocalizados" | "comBo") =>
+    linhas.reduce((t, l) => t + l[campo], 0);
+  const comRelatorio = linhas.filter((l) => l.relatorio.startsWith("REL-")).length;
+
+  return renderToBuffer(
+    <Document title={`Conferência de dispositivos ${ano} — compilado`} author="UTIN · SME Canoas" language="pt-BR">
+      <Page size="A4" orientation="landscape" style={s.pagina}>
+        <Text style={s.orgao}>Secretaria Municipal da Educação de Canoas · UTIN</Text>
+        <Text style={s.titulo}>Conferência de dispositivos {ano} · compilado de todas as unidades</Text>
+        <View style={s.meta}>
+          <View style={s.metaItem}>
+            <Text style={s.metaRotulo}>Gerado em</Text>
+            <Text style={s.metaValor}>{geradoEm}</Text>
+          </View>
+          <View style={s.metaItem}>
+            <Text style={s.metaRotulo}>Unidades</Text>
+            <Text style={s.metaValor}>{linhas.length}</Text>
+          </View>
+          <View style={s.metaItem}>
+            <Text style={s.metaRotulo}>Com relatório</Text>
+            <Text style={s.metaValor}>{comRelatorio}</Text>
+          </View>
+          <View style={s.metaItem}>
+            <Text style={s.metaRotulo}>Chromebooks</Text>
+            <Text style={s.metaValor}>{soma("chromebooks")}</Text>
+          </View>
+          <View style={s.metaItem}>
+            <Text style={s.metaRotulo}>Tablets</Text>
+            <Text style={s.metaValor}>{soma("tablets")}</Text>
+          </View>
+          <View style={s.metaItem}>
+            <Text style={s.metaRotulo}>Não localizados</Text>
+            <Text style={s.metaValor}>{soma("naoLocalizados")}</Text>
+          </View>
+          <View style={s.metaItem}>
+            <Text style={s.metaRotulo}>Com BO</Text>
+            <Text style={s.metaValor}>{soma("comBo")}</Text>
+          </View>
+        </View>
+        <Text style={s.paragrafo}>
+          Para cada unidade, vem a seguir a versão mais recente do relatório do ano: o PDF do Drive, com as
+          assinaturas. Unidades sem relatório aparecem com a situação registrada no sistema, sem assinaturas.
+        </Text>
+
+        <Text style={s.secao}>Unidades</Text>
+        <Tabela
+          itens={linhas}
+          colunas={[
+            { titulo: "Unidade", largura: "27%", valor: (l) => l.unidade },
+            { titulo: "Conferência", largura: "12%", valor: (l) => l.conferencia },
+            { titulo: "Relatório", largura: "12%", valor: (l) => l.relatorio },
+            { titulo: "Enviado", largura: "8%", valor: (l) => l.enviado },
+            { titulo: "Chromebooks", largura: "8%", valor: (l) => String(l.chromebooks) },
+            { titulo: "Tablets", largura: "6%", valor: (l) => String(l.tablets) },
+            { titulo: "Não loc.", largura: "6%", valor: (l) => String(l.naoLocalizados), destaque: (l) => l.naoLocalizados > 0 },
+            { titulo: "Com BO", largura: "6%", valor: (l) => String(l.comBo) },
+            { titulo: "Páginas no compilado", largura: "15%", valor: (l) => l.fonte },
+          ]}
+        />
+
+        <View style={s.rodape} fixed>
+          <Text>Conferência de dispositivos {ano} · compilado</Text>
+          <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
+        </View>
+      </Page>
+    </Document>,
+  );
 }

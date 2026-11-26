@@ -42,3 +42,7 @@ next-env.d.ts
 
 # planilhas de importação (dados sensíveis)
 *.csv
+
+# compilados da conferência (têm e-mails de alunos)
+/compilados/
+*.pdf

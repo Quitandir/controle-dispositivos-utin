@@ -29,6 +29,8 @@ controle-dispositivos/
 ├── seed-emails-escolas.ts          (e-mail institucional de cada escola, confere id+nome antes de gravar)
 ├── reset-dados-teste.ts           (reset dos dados de teste: prévia por padrão; --aplicar <endpoint-neon>)
 ├── seed-usuarios.ts                (contas autorizadas a entrar; só adiciona, nunca remove)
+├── compilar-conferencia.ts         (compilado do fim do ano num PDF único: `npm run compilado:dev|producao`; só lê)
+├── compilados/                     (saída do compilado; fora do git, tem e-mails de alunos)
 └── src/
     ├── auth.ts                     (config do Auth.js: Google + trava de domínio)
     ├── proxy.ts                    (substitui middleware.ts no Next 16; protege páginas)
@@ -41,6 +43,7 @@ controle-dispositivos/
     │   ├── sync-chromebooks.ts     (lógica da sincronização via Admin SDK)
     │   ├── status.ts               (opções de status + validação, Chromebook e tablet)
     │   ├── grupos-escolas.ts       (abas da home: EMEF, EMEI e Outras Instituições)
+    │   ├── conferencia.ts          (status da conferência da escola: opções, cores, quem tem)
     │   ├── telas.ts                (opções, validação e formatação das vistorias de telas)
     │   ├── relatorio.ts            (tipos do retrato da visita, código REL-AAAA-NNNN, resumos, textos fixos)
     │   ├── relatorio-dados.ts      (monta o retrato a partir do banco; conta pendentes)
@@ -63,7 +66,10 @@ controle-dispositivos/
         │   ├── ListaChromebooks.tsx    (lista + busca por patrimônio)
         │   ├── ListaTablets.tsx        (lista + busca + aviso de IMEI duplicado)
         │   ├── ReceberTablet.tsx       (traz para a escola um tablet de outra, pelo patrimônio)
-        │   ├── TransferirTablet.tsx    (na linha do tablet: manda para outra escola)
+        │   ├── TransferirTablet.tsx    (botão-ícone na linha do tablet + painel para mandar a outra escola)
+        │   ├── AtualizarConsole.tsx    (botão "Atualizar do Console": sincroniza só a UO da escola)
+        │   ├── SeletorConferencia.tsx  (dropdown do status da conferência da escola)
+        │   ├── FiltroConferencia.tsx   (filtro da home pelo status da conferência)
         │   ├── ListaExtraviados.tsx    (card dos extraviados: só exibição, busca no patrimônio e nas anotações)
         │   ├── ListaTelas.tsx          (telas da escola: última vistoria, histórico, edições)
         │   ├── FormularioVistoriaTela.tsx (formulário de vistoria — registrar e editar)
@@ -84,7 +90,9 @@ controle-dispositivos/
 
 ```typescript
 escolas: id, nome (unique), categoria ('EMEF'|'EMEI'|'CEIA'|'Administrativo'|'Extraviados'), orgUnitPath (unique, nullable),
-         email, diretorNome, observacoes, observacoesAtualizadasEm, observacoesAtualizadasPor
+         email, diretorNome, observacoes, observacoesAtualizadasEm, observacoesAtualizadasPor,
+         consoleAtualizadoEm, statusConferencia (null='a_conferir'|'em_conferencia'|'aguardando_retorno'|'finalizado'),
+         statusConferenciaEm, statusConferenciaPor
 
 chromebooks: id, googleDeviceId (unique), escolaId, assetId, serialNumber, model, notes,
              orgUnitPath, googleStatus, status ('localizado'|'nao_localizado'|'recolhido'),
@@ -153,6 +161,10 @@ SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN   (só no build da Vercel: envio d
 - **Card "Chromebooks extraviados"** (16/11/2026): é uma linha em `escolas` com a categoria `Extraviados`, ligada à UO `/Dispositivos/Extraviados`, e aparece em Outras Instituições. A página dele é **só de exibição**: mostra patrimônio, modelo, anotações do Console e última sincronização, sem status, abas, observações ou relatório. A busca procura no patrimônio e nas anotações, sem diferenciar acentos, para o time achar os extraviados da escola visitada. Quando um aparelho é localizado, o time o move para a UO da escola no Console, e ele sai do card na sincronização seguinte. A UO `/Extraviados 2.0` é de um teste e fica de fora. A UO `/Dispositivos/Inundados em maio de 2024` também fica fora do sistema.
 - **Status `com_bo` dos tablets**, rótulo "Dispositivo com Boletim de Ocorrência" (16/11/2026): o extravio já foi informado à polícia. Conta como conferido. No PDF, entra numa coluna "Com BO" do resumo e numa seção própria; no e-mail, numa lista própria, sem as orientações de busca.
 - **Transferência de tablets entre escolas** (16/11/2026): os tablets não têm UO; a "UO" é o `escolaId`, trocado pelo próprio sistema de dois jeitos: "Receber tablet de outra escola" (no topo da aba Tablets, pelo patrimônio, com confirmação mostrando a escola e o status atuais) e "Transferir para outra escola" (na linha do tablet). **O status nunca muda na transferência**, qualquer que seja, e o histórico de status também não. A transferência fica registrada no log de observações do tablet (`Transferido de X para Y`), sem tabela própria. O destino pode ser qualquer escola, exceto o card de extraviados. A aba Tablets aparece em toda escola, mesmo vazia, para poder receber. A action recusa se o tablet mudou de escola entre a tela e a confirmação. Relatórios já gerados não mudam (retrato congelado).
+- **Transferir na lista de tablets é um botão quadrado só com ícone** (⇄), não uma frase (26/11/2026, a frase poluía a lista). Em telas grandes (`lg`), fica numa última coluna; até telas médias, embaixo do status, ao lado de "Ver / adicionar observações". O painel de escolher a escola abre embaixo da linha, na largura toda.
+- **"Atualizar do Console"** (26/11/2026): botão na página de cada escola e no card dos extraviados que sincroniza **só a UO daquela unidade** (`sincronizarUO`, segundos em vez dos ~2,5 min da completa). Lê a UO e, para os aparelhos que estavam ligados à escola e não vieram, consulta um a um (`chromeosdevices.get`) onde estão agora. Aparelho excluído do Console (404) não é desligado nem apagado, como na sincronização completa: só entra na contagem. Continua só leitura e nunca mexe no status de conferência. `escolas.console_atualizado_em` guarda a última leitura (o cron completo atualiza todas as unidades com UO). Na API, `orgUnitPath` vai sem a barra inicial.
+- **Status da conferência da escola** (26/11/2026): dropdown na página da escola, **só para EMEF e EMEI** (`CATEGORIAS_COM_STATUS_CONFERENCIA`; CEIA, setores e extraviados não têm). Valores: A conferir (padrão, `null` no banco), Em conferência, Aguardando retorno da escola, Finalizado. **Tudo manual**, sem mudança automática. **"Finalizado" exige um relatório do ano já enviado à escola** (a escola respondeu sobre os não localizados com fotos ou BO); a interface desabilita a opção e o servidor confere de novo. Grava quem e quando. Na home: card amarelado em "Aguardando retorno", verde-petróleo claro em "Finalizado", etiqueta com o status em todos, contagem de finalizadas nas abas EMEF/EMEI e filtro no endereço (`?grupo=emef&conferencia=finalizado`). O "Voltar" da escola volta para a aba, sem o filtro.
+- **Compilado do fim do ano** (`compilar-conferencia.ts`, rodado **só à mão**, quando o time decidir): um PDF único com uma capa-índice de todas as unidades (exceto extraviados) e, para cada uma, a **versão mais recente do relatório do ano baixada do Drive** (o PDF assinado a lápis). Se o Drive falhar, gera de novo a partir do retrato congelado (sem assinaturas) e avisa. Unidades sem relatório entram com a situação atual do sistema, sem assinaturas; sem dispositivos, só no índice. Precisa ser empacotado com o esbuild antes (o npm script faz isso), porque o `@react-pdf` só funciona como ESM. Ensaio no `dev` em 26/11/2026: 89 unidades, 433 páginas. **Depois do compilado vem zerar a conferência para 2027 — script ainda não feito; as regras serão combinadas quando o time avisar.**
 - Tablets não têm fonte de sincronização — os dados vêm só do import único da planilha. IMEI **não é único** no banco de propósito (existem duplicidades reais na planilha, por erro de digitação histórico); a interface sinaliza em vermelho, mas não bloqueia.
 - Observações de tablet são **acumulativas** (um log, com data e autor por entrada), nunca sobrescritas.
 - **Telas interativas não têm lista prévia** por escola: a tela é criada (e vinculada à escola) na primeira vistoria. Se o patrimônio já existir em outra escola, a interface pede confirmação e transfere a tela; as vistorias antigas continuam ligadas a ela. Aparecem em EMEF, EMEI e CEIA (não em Administrativo).

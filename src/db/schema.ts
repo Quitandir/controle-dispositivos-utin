@@ -11,6 +11,12 @@ export const escolas = pgTable("escolas", {
   observacoes: text("observacoes"), // anotações da visita; entram no relatório ao gerar
   observacoesAtualizadasEm: timestamp("observacoes_atualizadas_em", { withTimezone: true }),
   observacoesAtualizadasPor: text("observacoes_atualizadas_por"),
+  // última vez que os Chromebooks da UO foram lidos do Admin Console (botão da escola ou cron)
+  consoleAtualizadoEm: timestamp("console_atualizado_em", { withTimezone: true }),
+  // andamento da conferência da escola, marcado à mão — null = 'a_conferir' (ver lib/conferencia.ts)
+  statusConferencia: text("status_conferencia"),
+  statusConferenciaEm: timestamp("status_conferencia_em", { withTimezone: true }),
+  statusConferenciaPor: text("status_conferencia_por"),
 });
 
 export const chromebooks = pgTable("chromebooks", {

@@ -13,7 +13,10 @@ import {
   visitas,
 } from "@/db/schema";
 import { CATEGORIAS_COM_TELAS, descreverAlteracoes, formatarData } from "@/lib/telas";
-import { codigoRelatorio } from "@/lib/relatorio";
+import { codigoRelatorio, hojeBrasilia } from "@/lib/relatorio";
+import { temStatusConferencia } from "@/lib/conferencia";
+import AtualizarConsole from "../../components/AtualizarConsole";
+import SeletorConferencia from "../../components/SeletorConferencia";
 import PainelRelatorio from "../../components/PainelRelatorio";
 import Header from "../../components/Header";
 import ListaChromebooks from "../../components/ListaChromebooks";
@@ -163,6 +166,13 @@ export default async function PaginaEscola({
       .orderBy(asc(escolas.nome)),
   ]);
 
+  const botaoConsole = escola.orgUnitPath ? (
+    <AtualizarConsole
+      escolaId={escolaId}
+      atualizadoEmFmt={escola.consoleAtualizadoEm ? fmt.format(escola.consoleAtualizadoEm) : null}
+    />
+  ) : null;
+
   const linkVoltar = (
     <Link href={`/?grupo=${grupoDaEscola(escola.categoria)}`} className="text-sm font-semibold text-teal-deep hover:underline">
       ← Voltar
@@ -182,8 +192,10 @@ export default async function PaginaEscola({
           </p>
           <p className="mt-3 max-w-2xl text-sm text-ink-soft">
             Busque o nome da escola visitada para ver os extraviados ligados a ela. Ao localizar um aparelho,
-            mova-o para a UO da escola no Admin Console: ele sai desta lista na sincronização seguinte.
+            mova-o para a UO da escola no Admin Console e clique em “Atualizar do Console” na página da
+            escola: ele passa para a lista dela e sai desta.
           </p>
+          {botaoConsole}
           <ListaExtraviados
             itens={listaChromebooks.map((c) => ({
               id: c.id,
@@ -199,6 +211,7 @@ export default async function PaginaEscola({
   }
 
   const imeisDuplicados = imeisDuplicadosRaw.rows.map((r) => r.imei);
+  const anoAtual = Number(hojeBrasilia().slice(0, 4));
 
   const conferidosChromebooks = listaChromebooks.filter((c) => c.status).length;
   const conferidosTablets = listaTablets.filter((t) => t.status).length;
@@ -306,6 +319,20 @@ export default async function PaginaEscola({
             </span>
           )}
         </div>
+
+        {temStatusConferencia(escola.categoria) && (
+          <SeletorConferencia
+            escolaId={escolaId}
+            valorInicial={escola.statusConferencia}
+            alteracaoInicial={
+              escola.statusConferenciaEm
+                ? `${fmt.format(escola.statusConferenciaEm)} por ${escola.statusConferenciaPor}`
+                : null
+            }
+            podeFinalizar={listaVisitas.some((v) => v.ano === anoAtual && v.enviadoEm)}
+          />
+        )}
+        {botaoConsole}
 
         {(listaChromebooks.length > 0 || listaTablets.length > 0 || itensTelas.length > 0) && (
           <PainelRelatorio

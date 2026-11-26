@@ -5,7 +5,11 @@ import FiltroStatus from "./FiltroStatus";
 import SeletorStatus from "./SeletorStatus";
 import CampoObservacoes from "./CampoObservacoes";
 import ReceberTablet from "./ReceberTablet";
-import TransferirTablet, { type EscolaDestino } from "./TransferirTablet";
+import PainelTransferencia, { BotaoTransferir, type EscolaDestino } from "./TransferirTablet";
+
+// Colunas da lista: 4 em telas médias (status e observações juntos), 6 em telas grandes
+// (o botão de transferir na última)
+const COLUNAS = "md:grid-cols-[8rem_10rem_1fr_8rem] lg:grid-cols-[8rem_10rem_16rem_1fr_8rem_2.75rem]";
 import { FILTRO_TODOS, passaNoFiltro, STATUS_OPCOES_TABLET } from "@/lib/status";
 
 export type ItemTablet = {
@@ -30,6 +34,7 @@ export default function ListaTablets({
 }) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState(FILTRO_TODOS);
+  const [transferindo, setTransferindo] = useState<number | null>(null); // tablet com o painel aberto
   const termo = busca.trim().toLowerCase();
   const duplicados = useMemo(() => new Set(imeisDuplicados), [imeisDuplicados]);
 
@@ -59,20 +64,23 @@ export default function ListaTablets({
           </p>
         )}
       </div>
-      <div className="mt-2 hidden grid-cols-[9rem_11rem_18rem_1fr_9rem] gap-4 px-5 font-mono text-xs uppercase tracking-widest text-ink-soft md:grid">
+      <div className={`mt-2 hidden gap-4 px-5 font-mono text-xs uppercase tracking-widest text-ink-soft md:grid ${COLUNAS}`}>
         <span>Patrimônio</span>
         <span>IMEI</span>
-        <span>Status</span>
-        <span>Observações</span>
+        <span className="lg:hidden">Status e observações</span>
+        <span className="hidden lg:block">Status</span>
+        <span className="hidden lg:block">Observações</span>
         <span>Última mudança</span>
+        <span className="hidden lg:block" />
       </div>
       <ul className="mt-3 flex flex-col gap-3">
         {filtrados.map((t) => {
           const imeiDuplicado = t.imei ? duplicados.has(t.imei) : false;
+          const transferindoEste = transferindo === t.id;
           return (
             <li
               key={t.id}
-              className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-4 md:grid md:grid-cols-[9rem_11rem_18rem_1fr_9rem] md:items-start md:gap-4 md:px-5"
+              className={`flex flex-col gap-3 rounded-2xl border border-line bg-white p-4 md:grid md:items-start md:gap-4 md:px-5 ${COLUNAS}`}
             >
               <div>
                 <span className="font-mono text-xs uppercase text-ink-soft md:hidden">Patrimônio </span>
@@ -91,17 +99,32 @@ export default function ListaTablets({
                   <p className="mt-0.5 text-xs text-terracotta">IMEI repetido em outro tablet</p>
                 )}
               </div>
-              <div className="flex flex-col gap-2">
+              {/* Até telas médias: status e, embaixo, observações + botão de transferir lado a lado.
+                  Em telas grandes (lg:contents), cada um vira uma coluna, e o botão vai para a última. */}
+              <div className="flex flex-col gap-2 lg:contents">
                 <SeletorStatus tipo="tablet" id={t.id} statusInicial={t.status} />
-                <TransferirTablet
+                <div className="flex items-start gap-2 lg:contents">
+                  <div className="min-w-0 flex-1 pt-2.5 lg:pt-0">
+                    <CampoObservacoes tabletId={t.id} historico={t.observacoes} />
+                  </div>
+                  <BotaoTransferir
+                    aberto={transferindoEste}
+                    aoClicar={() => setTransferindo(transferindoEste ? null : t.id)}
+                    className="lg:order-last"
+                  />
+                </div>
+              </div>
+              <div className="font-mono text-xs text-ink-soft">{t.atualizadoEm ?? "—"}</div>
+              {transferindoEste && (
+                <PainelTransferencia
                   tabletId={t.id}
                   patrimonio={t.patrimonio}
                   escolaAtualId={escolaId}
                   escolas={escolasDestino}
+                  aoFechar={() => setTransferindo(null)}
+                  className="md:col-span-full lg:order-last"
                 />
-              </div>
-              <CampoObservacoes tabletId={t.id} historico={t.observacoes} />
-              <div className="font-mono text-xs text-ink-soft">{t.atualizadoEm ?? "—"}</div>
+              )}
             </li>
           );
         })}
